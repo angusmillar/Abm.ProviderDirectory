@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Abm.PD.Console/Abm.PD.Console.csproj" />
+  <Project Path="Abm.PD.Domain/Abm.PD.Domain.csproj" />
+</Solution>
