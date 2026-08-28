@@ -14,6 +14,7 @@ using Abm.PD.Domain.FhirSupport;
 using Abm.PD.Domain.Models.Manifest;
 using Abm.PD.Domain.NdJsonSupport;
 using Hl7.Fhir.Serialization;
+using Hl7.Fhir.Utility;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Task = System.Threading.Tasks.Task;
@@ -32,6 +33,7 @@ public class FhirBulkExporter(
     private const string NdJsonMediaType = "application/fhir+ndjson";
 
     private static readonly JsonSerializerOptions ManifestJsonSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly FhirJsonPocoDeserializer FhirJsonDeserializer = new();
 
     //The FHIR POCOs need Firely's converters, the System.Text.Json defaults can not read them.
     private static readonly JsonSerializerOptions FhirNdJsonSerializerOptions =
@@ -50,7 +52,7 @@ public class FhirBulkExporter(
         Parameters parameters,
         CancellationToken cancellationToken)
     {
-        FhirBulkExportSessionStatus[] allowedToStart = [FhirBulkExportSessionStatus.NotStarted, FhirBulkExportSessionStatus.Error];
+        FhirBulkExportSessionStatus[] allowedToStart = [FhirBulkExportSessionStatus.NotStarted, FhirBulkExportSessionStatus.Failed];
         if (!allowedToStart.Contains(CurrentSessionStatus))
         {
             throw new FhirBulkExportException(
@@ -127,7 +129,102 @@ public class FhirBulkExporter(
         return GetFhirBulkExportState();
     }
 
-    
+    public async Task<FhirBulkExportState> DeleteExport(
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(JobId);
+        
+        HttpClient httpClient = httpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
+        
+        // Relative, no leading slash — see the BaseAddress note below.
+        Uri requestUri = new(GetBaseAddress(httpClient), $"${ExportPollStatusOperationName}?{JobIdParameterName}={Uri.EscapeDataString(JobId)}");   
+
+        using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
+        //request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/fhir+json"));
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        
+        if (response.StatusCode is HttpStatusCode.Accepted)
+        {
+            CurrentSessionStatus = FhirBulkExportSessionStatus.Deleted;
+            StartTime = null;
+            EndTime = null;
+            JobId = null;
+            Manifest = null;
+            OperationOutcome = null;
+            ErrorMessages = null;
+            return GetFhirBulkExportState();
+        }
+
+        string json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        //202 Accepted is the only documented success response to the delete, so anything else leaves the job in an
+        //unknown state. Report whatever OperationOutcome the server sent rather than assuming it was deleted.
+        OperationOutcome = TryDeserializeOperationOutcome(json, ExportPollStatusOperationName);
+        ErrorMessages = OperationOutcome is not null
+            ? OperationOutcomeSupport.ExtractErrorMessages(OperationOutcome)
+            : [$"The ${ExportPollStatusOperationName} delete responded with the unexpected HTTP status {(int)response.StatusCode}."];
+
+        CurrentSessionStatus = FhirBulkExportSessionStatus.Failed;
+        return GetFhirBulkExportState();
+    }
+
+    /// <summary>
+    /// Reads a FHIR JSON response body as an OperationOutcome, returning null rather than throwing when the body
+    /// is absent, is not FHIR JSON, or holds some other resource type.
+    /// </summary>
+    private OperationOutcome? TryDeserializeOperationOutcome(
+        string json,
+        string operationName)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        Resource? resource;
+        IEnumerable<CodedException>? issues;
+        try
+        {
+            //TryDeserializeResource reports FHIR level problems through issues, but a body that is not JSON at
+            //all, an HTML error page from a gateway for example, still throws.
+            if (!FhirJsonDeserializer.TryDeserializeResource(json, out resource, out issues))
+            {
+                logger.LogWarning(
+                    "The ${OperationName} operation's response body could not be read as a FHIR resource: {Issues}",
+                    operationName,
+                    string.Join("; ", issues?.Select(issue => issue.Message) ?? []));
+
+                return null;
+            }
+        }
+        catch (Exception exception) when (exception is JsonException or DeserializationFailedException or FormatException)
+        {
+            logger.LogWarning(
+                exception,
+                "The ${OperationName} operation's response body is not valid FHIR JSON: {ResponseBody}",
+                operationName,
+                json);
+
+            return null;
+        }
+
+        if (resource is not OperationOutcome operationOutcome)
+        {
+            logger.LogWarning(
+                "The ${OperationName} operation's response body held a {ResourceType} where an OperationOutcome was expected",
+                operationName,
+                resource?.TypeName ?? "[Unknown]");
+
+            return null;
+        }
+
+        return operationOutcome;
+    }
+
+
     public async IAsyncEnumerable<FhirBulkExportResource> GetExport(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -251,7 +348,7 @@ public class FhirBulkExporter(
         if (outcomeFileCount > 0)
         {
             logger.LogWarning(
-                "The Output Manifest listed {OutcomeFileCount} outcome file(s), which {MethodName} does not read.",
+                "The Output Manifest listed {OutcomeFileCount} outcome file(s), which {MethodName} does not read",
                 outcomeFileCount,
                 nameof(GetExport));
         }
@@ -259,7 +356,7 @@ public class FhirBulkExporter(
         if (manifest.Deleted is { Count: > 0 })
         {
             logger.LogWarning(
-                "The Output Manifest listed {DeletedFileCount} deleted file(s), which {MethodName} does not read.",
+                "The Output Manifest listed {DeletedFileCount} deleted file(s), which {MethodName} does not read",
                 manifest.Deleted.Count,
                 nameof(GetExport));
         }
@@ -278,7 +375,6 @@ public class FhirBulkExporter(
 
         return baseAddress;
     }
-
 
     private FhirBulkExportManifest DeserializeManifest(
         string json)
@@ -314,7 +410,7 @@ public class FhirBulkExporter(
         FhirOperationException fhirOperationException)
     {
         logger.LogError(fhirOperationException, "The {ExportOperationName} operation encountered an error",ExportOperationName);
-        CurrentSessionStatus = FhirBulkExportSessionStatus.Error;
+        CurrentSessionStatus = FhirBulkExportSessionStatus.Failed;
         StartTime = null;
         EndTime = null;
         JobId = null;
@@ -347,7 +443,7 @@ public class FhirBulkExporter(
         FhirClient fhirClient,
         string? httpStatus)
     {
-        CurrentSessionStatus = FhirBulkExportSessionStatus.Error;
+        CurrentSessionStatus = FhirBulkExportSessionStatus.Failed;
         StartTime = null;
         EndTime = null;
         JobId = null;

@@ -5,5 +5,6 @@ public enum FhirBulkExportSessionStatus
     NotStarted,
     InProgress,
     Completed,
-    Error
+    Deleted,
+    Failed
 }

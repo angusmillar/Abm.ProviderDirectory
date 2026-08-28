@@ -10,6 +10,9 @@ public interface IFhirBulkExporter
     Task<FhirBulkExportState> PollExport(
         CancellationToken cancellationToken);
 
+    Task<FhirBulkExportState> DeleteExport(
+        CancellationToken cancellationToken);
+    
     IAsyncEnumerable<FhirBulkExportResource> GetExport(
         CancellationToken cancellationToken);
 }

@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Abm.PD.Console.Settings;
+using Abm.PD.Domain.DateTimeSupport;
 using Abm.PD.Domain.FhirBulkExport;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
@@ -19,49 +20,52 @@ namespace Abm.PD.Console;
 //  HealthcareService
 //  PractitionerRole
 
-
 public class ConsoleApplication(
     ILogger<ConsoleApplication> logger,
     IOptions<ConsoleApplicationSettings> appSettings,
     IFhirBulkExporter fhirBulkExporter)
 {
     private Stopwatch? Stopwatch;
-    
-    public async Task Run(CancellationToken cancellationToken)
+
+    public async Task Run(
+        CancellationToken cancellationToken)
     {
         StartStopwatch();
+        
+        Parameters parameters = GetSmallExportParametersResource(
+            fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"), 
+            toDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-25T10:00:00+10:00"));
 
-        Parameters parameters = GetSmallExportParametersResource();
+        FhirBulkExportState bulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
 
-        FhirBulkExportState fhirBulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
-        
-        logger.LogInformation("{@FhirBulkExportState}", fhirBulkExportState);
-        
-        
-        while (fhirBulkExportState.SessionStatus == FhirBulkExportSessionStatus.InProgress)
+        logger.LogInformation("{@FhirBulkExportState}", bulkExportState);
+
+
+        while (bulkExportState.SessionStatus == FhirBulkExportSessionStatus.InProgress)
         {
             await Task.Delay(20000, cancellationToken);
-            fhirBulkExportState = await fhirBulkExporter.PollExport(cancellationToken);
-            ArgumentNullException.ThrowIfNull(fhirBulkExportState.StartTime);
-            logger.LogInformation("{Status}: {Time} : {JobId}", 
-                fhirBulkExportState.SessionStatus, 
-                DateTimeOffset.Now.Subtract(fhirBulkExportState.StartTime.Value).ToString(), 
-                fhirBulkExportState.JobId);
+            bulkExportState = await fhirBulkExporter.DeleteExport(cancellationToken);
+            // bulkExportState = await fhirBulkExporter.PollExport(cancellationToken);
+            // ArgumentNullException.ThrowIfNull(bulkExportState.StartTime);
+            // logger.LogInformation("{Status}: {Time} : {JobId}",
+            //     bulkExportState.SessionStatus,
+            //     DateTimeOffset.Now.Subtract(bulkExportState.StartTime.Value).ToString(),
+            //     bulkExportState.JobId);
         }
-        
-        ArgumentNullException.ThrowIfNull(fhirBulkExportState.Manifest);
-        
+
+        ArgumentNullException.ThrowIfNull(bulkExportState.Manifest);
+
         var options = new JsonSerializerOptions
         {
             WriteIndented = true,
         };
 
-        string json = JsonSerializer.Serialize(fhirBulkExportState.Manifest, options);
+        string json = JsonSerializer.Serialize(bulkExportState.Manifest, options);
         await File.WriteAllTextAsync(@"C:\Temp\Abm.ProviderDirectory\Manifest.json", json, cancellationToken);
-        
+
         logger.LogInformation("{@Manifest}",
-            fhirBulkExportState.Manifest);
-        
+            bulkExportState.Manifest);
+
         //GetExport streams the NDJSON output files, so this loop never holds more than one resource at a time.
         int resourceCount = 0;
         await foreach (FhirBulkExportResource exportResource in fhirBulkExporter.GetExport(cancellationToken))
@@ -72,9 +76,9 @@ public class ConsoleApplication(
                 exportResource.Resource.Id,
                 exportResource.LineNumber,
                 exportResource.SourceUrl);
-            
+
             await File.WriteAllTextAsync(
-                @$"C:\Temp\Abm.ProviderDirectory\{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json", 
+                @$"C:\Temp\Abm.ProviderDirectory\{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json",
                 await exportResource.Resource.ToJsonAsync(), cancellationToken);
         }
 
@@ -128,13 +132,25 @@ public class ConsoleApplication(
         return parameters;
     }
 
-    private static Parameters GetSmallExportParametersResource()
+    private static Parameters GetSmallExportParametersResource(
+        DateTimeOffset fromDateTime,
+        DateTimeOffset toDateTime)
     {
         Parameters parameters = new Parameters();
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_outputFormat",
             Value = new FhirString("application/fhir+ndjson")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_since",
+            Value = new Instant() { Value = fromDateTime}
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_until",
+            Value = new Instant() { Value = toDateTime}
         });
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
@@ -146,10 +162,10 @@ public class ConsoleApplication(
             Name = "_typeFilter",
             Value = new FhirString("Endpoint?_lastUpdated=gt2010")
         });
-        
+
         return parameters;
     }
-    
+
     private void EndStopwatch()
     {
         ArgumentNullException.ThrowIfNull(Stopwatch);
