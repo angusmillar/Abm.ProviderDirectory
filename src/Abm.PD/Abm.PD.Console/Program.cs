@@ -1,5 +1,7 @@
-﻿using Abm.PD.Console.Settings;
+﻿using Abm.PD.Console;
+using Abm.PD.Console.Settings;
 using Microsoft.Extensions.DependencyInjection;
+using Abm.PD.Domain.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -20,7 +22,8 @@ builder.Services.AddOptions<ConsoleApplicationSettings>()
     .ValidateOnStart();
 
 // Add services/tools as required.
-//builder.Services.AddScoped<BinaryTesting>();
+builder.Services.AddScoped<ConsoleApplication>();
+builder.Services.AddProviderDirectoryServices(builder.Configuration);
 
 //Build the host and resolve Application via a scope
 using var host = builder.Build();
@@ -28,6 +31,8 @@ using var host = builder.Build();
 //Create a new scope
 await using var scope = host.Services.CreateAsyncScope();
 
+CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+
 //Choose the tool to be run:
-//await scope.ServiceProvider.GetRequiredService<BinaryTesting>().Run();
+await scope.ServiceProvider.GetRequiredService<ConsoleApplication>().Run(cancellationTokenSource.Token);
 
