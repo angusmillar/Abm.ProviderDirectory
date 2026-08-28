@@ -23,48 +23,58 @@ namespace Abm.PD.Console;
 public class ConsoleApplication(
     ILogger<ConsoleApplication> logger,
     IOptions<ConsoleApplicationSettings> appSettings,
+    IDateTimeProvider dateTimeProvider,
     IFhirBulkExporter fhirBulkExporter)
 {
     private Stopwatch? Stopwatch;
+    private const int PollingSeconds = 20;
 
     public async Task Run(
         CancellationToken cancellationToken)
     {
         StartStopwatch();
-        
+
         Parameters parameters = GetSmallExportParametersResource(
-            fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"), 
+            fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"),
             toDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-25T10:00:00+10:00"));
 
         FhirBulkExportState bulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
 
-        logger.LogInformation("{@FhirBulkExportState}", bulkExportState);
+        if (bulkExportState.SessionStatus == FhirBulkExportSessionStatus.InProgress)
+        {
+            logger.LogInformation("Polling for export preparation status every {PollingSeconds} seconds", PollingSeconds);
+            ArgumentNullException.ThrowIfNull(bulkExportState.StartTime);
+            logger.LogInformation("JobId: {JobId} status is {Status} after {TimeSpan}",
+                bulkExportState.JobId,
+                bulkExportState.SessionStatus,
+                dateTimeProvider.Now.Subtract(bulkExportState.StartTime.Value).ToNarrative());
+        }
 
+        if (bulkExportState.SessionStatus != FhirBulkExportSessionStatus.InProgress)
+        {
+            logger.LogInformation("{@BulkExportState}", bulkExportState);
+            throw new ApplicationException("Failed to BeginExport, see application logs");
+        }
 
         while (bulkExportState.SessionStatus == FhirBulkExportSessionStatus.InProgress)
         {
-            await Task.Delay(20000, cancellationToken);
-            bulkExportState = await fhirBulkExporter.DeleteExport(cancellationToken);
-            // bulkExportState = await fhirBulkExporter.PollExport(cancellationToken);
-            // ArgumentNullException.ThrowIfNull(bulkExportState.StartTime);
-            // logger.LogInformation("{Status}: {Time} : {JobId}",
-            //     bulkExportState.SessionStatus,
-            //     DateTimeOffset.Now.Subtract(bulkExportState.StartTime.Value).ToString(),
-            //     bulkExportState.JobId);
+            await Task.Delay((PollingSeconds * 1000), cancellationToken);
+            //bulkExportState = await fhirBulkExporter.DeleteExport(cancellationToken);
+            bulkExportState = await fhirBulkExporter.PollExport(cancellationToken);
+            ArgumentNullException.ThrowIfNull(bulkExportState.StartTime);
+            logger.LogInformation("JobId: {JobId} status is {Status} after {TimeSpan}",
+                bulkExportState.JobId,
+                bulkExportState.SessionStatus,
+                dateTimeProvider.Now.Subtract(bulkExportState.StartTime.Value).ToNarrative());
         }
 
         ArgumentNullException.ThrowIfNull(bulkExportState.Manifest);
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
-        string json = JsonSerializer.Serialize(bulkExportState.Manifest, options);
+        string json =
+            JsonSerializer.Serialize(bulkExportState.Manifest, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(@"C:\Temp\Abm.ProviderDirectory\Manifest.json", json, cancellationToken);
 
-        logger.LogInformation("{@Manifest}",
-            bulkExportState.Manifest);
+        LogManifest(bulkExportState);
 
         //GetExport streams the NDJSON output files, so this loop never holds more than one resource at a time.
         int resourceCount = 0;
@@ -85,6 +95,43 @@ public class ConsoleApplication(
         logger.LogInformation("Read {ResourceCount} resource(s) from the export", resourceCount);
 
         EndStopwatch();
+    }
+
+    private void LogManifest(
+        FhirBulkExportState bulkExportState)
+    {
+        ArgumentNullException.ThrowIfNull(bulkExportState.StartTime);
+        ArgumentNullException.ThrowIfNull(bulkExportState.Manifest);
+        
+        logger.LogInformation("Data Export Manifest received for JobId {JobId} after: {TimeSpan}",
+            bulkExportState.JobId,
+            dateTimeProvider.Now.Subtract(bulkExportState.StartTime.Value).ToNarrative());
+        
+        logger.LogInformation(
+            "JobId {JobId} Manifest Transaction {TransactionTime}",
+            bulkExportState.JobId,
+            bulkExportState.Manifest.TransactionTime.ToString("s"));
+        
+        logger.LogInformation(
+            "JobId {JobId} Manifest Output {OutputCount}",
+            bulkExportState.JobId,
+            bulkExportState.Manifest.Output?.Count ?? 0);
+        
+        logger.LogInformation(
+            "JobId {JobId} Manifest Deleted {Deleted}",
+            bulkExportState.JobId,
+            bulkExportState.Manifest.Deleted?.Count ?? 0);
+        
+        logger.LogInformation(
+            "JobId {JobId} Manifest Outcome {TransactionTime}",
+            bulkExportState.JobId,
+            bulkExportState.Manifest.Outcome?.Count ?? 0);
+        
+        logger.LogInformation(
+            "JobId {JobId} Manifest Error {TransactionTime}",
+            bulkExportState.JobId,
+            bulkExportState.Manifest.Error?.Count ?? 0);
+        
     }
 
     private static Parameters GetExportParametersResource()
@@ -145,12 +192,12 @@ public class ConsoleApplication(
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_since",
-            Value = new Instant() { Value = fromDateTime}
+            Value = new Instant() { Value = fromDateTime }
         });
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_until",
-            Value = new Instant() { Value = toDateTime}
+            Value = new Instant() { Value = toDateTime }
         });
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
