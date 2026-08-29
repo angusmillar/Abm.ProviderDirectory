@@ -8,6 +8,8 @@ public record FhirBulkExportState(
     DateTimeOffset? StartTime,
     DateTimeOffset? EndTime,
     string? JobId,
+    string? ProgressMessage,
+    TimeSpan? RequestedPollDelay,
     OperationOutcome? OperationOutcome,
     string[]? ErrorMessages,
     FhirBulkExportManifest? Manifest);

@@ -45,6 +45,8 @@ public class FhirBulkExporter(
     private DateTimeOffset? EndTime;
     private OperationOutcome? OperationOutcome;
     private string[]? ErrorMessages;
+    private string? ProgressMessage;
+    private TimeSpan? RetryPollAfterSeconds;
     private FhirBulkExportManifest? Manifest;
     
     
@@ -63,6 +65,8 @@ public class FhirBulkExporter(
         EndTime = null;
         JobId = null;
         Manifest = null;
+        ProgressMessage = null;
+        RetryPollAfterSeconds = null;
 
         FhirClient fhirClient = fhirHttpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
         SetOperationRequiredHeaders(fhirClient);
@@ -115,6 +119,8 @@ public class FhirBulkExporter(
         if (response.StatusCode is HttpStatusCode.Accepted)
         {
             CurrentSessionStatus = FhirBulkExportSessionStatus.InProgress;
+            ProgressMessage = GetProgressMessage(response.Headers);
+            RetryPollAfterSeconds = response.Headers.RetryAfter?.Delta;
             return GetFhirBulkExportState();
         }
 
@@ -124,9 +130,21 @@ public class FhirBulkExporter(
         EndTime = dateTimeProvider.Now;
         OperationOutcome = null;
         ErrorMessages = null;
+        ProgressMessage = null;
+        RetryPollAfterSeconds = null;
         CurrentSessionStatus = FhirBulkExportSessionStatus.Completed;
 
         return GetFhirBulkExportState();
+    }
+
+    private string? GetProgressMessage(HttpResponseHeaders httpResponseHeaders)
+    {
+        if (httpResponseHeaders.TryGetValues("X-Progress", out IEnumerable<string>? xProgressValues))
+        {
+            return xProgressValues.FirstOrDefault();
+        }
+
+        return null;
     }
 
     public async Task<FhirBulkExportState> DeleteExport(
@@ -155,6 +173,8 @@ public class FhirBulkExporter(
             Manifest = null;
             OperationOutcome = null;
             ErrorMessages = null;
+            ProgressMessage = null;
+            RetryPollAfterSeconds = null;
             return GetFhirBulkExportState();
         }
 
@@ -434,6 +454,8 @@ public class FhirBulkExporter(
             StartTime: StartTime, 
             EndTime: EndTime, 
             JobId: JobId,
+            ProgressMessage: ProgressMessage,
+            RequestedPollDelay: RetryPollAfterSeconds,
             OperationOutcome: OperationOutcome,
             ErrorMessages: ErrorMessages,
             Manifest: Manifest);
