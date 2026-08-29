@@ -35,12 +35,12 @@ public class ConsoleApplication(
     {
         StartStopwatch();
 
-        logger.LogInformation("== Begin Requst ================================================================");
+        logger.LogInformation("== Begin Request ================================================================");
         logger.LogInformation("FHIR Bulk Data Export session started"); 
         
-        Parameters parameters = GetSmallExportParametersResource(
-            fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"),
-            toDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-25T10:00:00+10:00"));
+        // Parameters parameters = GetSmallExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"));
+        
+        Parameters parameters = GetPractitionerLargeExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2020-01-01T00:00:00+10:00"));
         
         FhirBulkExportState bulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
 
@@ -123,7 +123,7 @@ public class ConsoleApplication(
                 exportResource.SourceUrl);
 
             await File.WriteAllTextAsync(
-                @$"C:\Temp\Abm.ProviderDirectory\{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json",
+                @$"C:\Temp\Abm.ProviderDirectory\Output\{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json",
                 await exportResource.Resource.ToJsonAsync(), cancellationToken);
         }
 
@@ -252,8 +252,7 @@ public class ConsoleApplication(
     }
 
     private static Parameters GetSmallExportParametersResource(
-        DateTimeOffset fromDateTime,
-        DateTimeOffset toDateTime)
+        DateTimeOffset fromDateTime)
     {
         Parameters parameters = new Parameters();
         parameters.Parameter.Add(new Parameters.ParameterComponent()
@@ -266,11 +265,7 @@ public class ConsoleApplication(
             Name = "_since",
             Value = new Instant() { Value = fromDateTime }
         });
-        parameters.Parameter.Add(new Parameters.ParameterComponent()
-        {
-            Name = "_until",
-            Value = new Instant() { Value = toDateTime }
-        });
+
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_type",
@@ -285,6 +280,36 @@ public class ConsoleApplication(
         return parameters;
     }
 
+    
+    private static Parameters GetPractitionerLargeExportParametersResource(
+        DateTimeOffset fromDateTime)
+    {
+        Parameters parameters = new Parameters();
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_outputFormat",
+            Value = new FhirString("application/fhir+ndjson")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_since",
+            Value = new Instant() { Value = fromDateTime }
+        });
+        
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_type",
+            Value = new FhirString("Practitioner")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString("Practitioner?_lastUpdated=gt2010")
+        });
+
+        return parameters;
+    }
+    
     private void EndStopwatch()
     {
         ArgumentNullException.ThrowIfNull(Stopwatch);
