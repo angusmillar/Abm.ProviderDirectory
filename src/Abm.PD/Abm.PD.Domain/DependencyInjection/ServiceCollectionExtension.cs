@@ -1,4 +1,5 @@
 ﻿using Abm.PD.Domain.DateTimeSupport;
+using Abm.PD.Domain.Exporter;
 using Abm.PD.Domain.FhirBulkExport;
 using Abm.PD.Domain.Settings;
 using FhirNavigator;
@@ -38,7 +39,7 @@ public static class ServiceCollectionExtension
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         
         services.AddScoped<IFhirBulkExporter, FhirBulkExporter>();
-        
+        services.AddScoped<IFhirExporter, FhirExporter>();
         
         return services;
     }
