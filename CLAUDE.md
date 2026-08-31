@@ -18,7 +18,7 @@ persistence layer and no resource-loading pipeline in the solution at this stage
 currently stands in for that by writing each downloaded resource to a JSON file under
 `C:\Temp\Abm.ProviderDirectory\Output\`.
 
-There are no test projects yet.
+Unit tests live in `Abm.PD.Tests` (xunit). They never touch the live server — see *Testing* below.
 
 ## Layout
 
@@ -30,6 +30,9 @@ src/Abm.PD/
     ConsoleApplication.cs      The scenario being run: builds $export Parameters, drives the export
     Settings/                  ConsoleApplicationSettings
     appsettings.json           Config incl. FhirNavigator repositories + Serilog
+  Abm.PD.Tests/                Unit tests (xunit), no network
+    TestDoubles/               StubHttpMessageHandler and the exporter harness built over it
+    TestData/                  Canned Output Manifest and NDJSON payloads
   Abm.PD.Domain/               All the reusable logic
     FhirBulkExport/            IFhirBulkExporter / FhirBulkExporter — the core of the solution
     Models/Manifest/           POCOs for the Bulk Data "Output Manifest" JSON
@@ -45,6 +48,7 @@ src/Abm.PD/
 
 ```powershell
 dotnet build src/Abm.PD/Abm.PD.slnx
+dotnet test src/Abm.PD/Abm.PD.Tests
 dotnet run --project src/Abm.PD/Abm.PD.Console
 ```
 
@@ -133,6 +137,27 @@ Match the surrounding code:
   XML doc comments on public domain types, citing the Bulk Data spec where relevant.
 - **Australian English** in comments and log messages ("organised", "initialise").
 - Structured Serilog logging with named placeholders, `JobId` first on export-related messages.
+
+## Testing
+
+`Abm.PD.Tests` is an xunit project with no third-party mocking or assertion libraries — the test doubles are
+hand written and live in `TestDoubles/`.
+
+**No test ever reaches the network.** The exporter's only two outbound seams are `IFhirHttpClientFactory`
+(a Firely `FhirClient`) and `IHttpClientFactory` (a raw `HttpClient`), and both of those types accept an
+`HttpMessageHandler`. `StubHttpMessageHandler` replaces that handler, which is the bottom of the pipeline, so
+there is no transport left to call: no socket is opened and the suite runs identically offline.
+
+- The `FhirClient` itself is deliberately **not** faked. It does the FHIR serialisation, the status code checking
+  and the `LastResult` / `LastBodyAsResource` bookkeeping that `FhirBulkExporter` reads, so faking it would only
+  test the fake. Swapping the handler underneath keeps all of that real.
+- A request the test has not scripted **throws** rather than falling through, so a missing route fails fast
+  instead of hanging on a connection attempt.
+- Test addresses sit under `.test` (reserved by RFC 2606), so nothing could resolve even if a request escaped.
+- `FhirBulkExporterHarness` wires a real `FhirBulkExporter` over one stub handler and can drive the session to
+  `InProgress` or `Completed` so a test starts where it needs to.
+- `ReadTrackingStream` counts the bytes actually pulled from a response, which is how the streaming invariant is
+  asserted: the tests fail if `GetExport` ever starts buffering an output file or fetching the next file eagerly.
 
 ## Domain background
 
