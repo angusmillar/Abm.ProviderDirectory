@@ -243,8 +243,7 @@ public class FhirBulkExporter(
 
         return operationOutcome;
     }
-
-
+    
     public async IAsyncEnumerable<FhirBulkExportResource> GetExport(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -550,6 +549,5 @@ public class FhirBulkExporter(
 
         return jobId;
     }
-    
     
 }
