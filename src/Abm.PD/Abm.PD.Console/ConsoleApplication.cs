@@ -14,8 +14,8 @@ using Task = System.Threading.Tasks.Task;
 namespace Abm.PD.Console;
 
 // Load order based on resource references
-// Endpoint
 // Practitioner
+// Endpoint
 // Organization
 //  Location
 //  HealthcareService
@@ -38,9 +38,10 @@ public class ConsoleApplication(
         logger.LogInformation("== Begin Request ================================================================");
         logger.LogInformation("FHIR Bulk Data Export session started"); 
         
-        // Parameters parameters = GetSmallExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"));
         
-        Parameters parameters = GetPractitionerLargeExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2020-01-01T00:00:00+10:00"));
+        Parameters parameters = GetExportParametersResource();
+        //Parameters parameters = GetSmallExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"));
+        //Parameters parameters = GetPractitionerLargeExportParametersResource(fromDateTime: DateTimeSupport.GetDateTimeOffset("2020-01-01T00:00:00+10:00"));
         
         FhirBulkExportState bulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
 
@@ -280,10 +281,17 @@ public class ConsoleApplication(
         return parameters;
     }
 
-    
+    // Practitioner
+// Endpoint
+// Organization
+//  Location
+//  HealthcareService
+//  PractitionerRole
     private static Parameters GetPractitionerLargeExportParametersResource(
         DateTimeOffset fromDateTime)
     {
+        var since = new Instant() { Value = fromDateTime };
+        
         Parameters parameters = new Parameters();
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
@@ -293,18 +301,43 @@ public class ConsoleApplication(
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_since",
-            Value = new Instant() { Value = fromDateTime }
+            Value = since
         });
         
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_type",
-            Value = new FhirString("Practitioner")
+            Value = new FhirString("Organization,Location,Endpoint,Practitioner,HealthcareService,PractitionerRole")
         });
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_typeFilter",
-            Value = new FhirString("Practitioner?_lastUpdated=gt2010")
+            Value = new FhirString($"Organization?_lastUpdated=ge{since}")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString($"Location?_lastUpdated=ge{since}")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString($"Endpoint?_lastUpdated=ge{since}")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString($"Practitioner?_lastUpdated=ge{since}")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString($"HealthcareService?_lastUpdated=ge{since}")
+        });
+        parameters.Parameter.Add(new Parameters.ParameterComponent()
+        {
+            Name = "_typeFilter",
+            Value = new FhirString($"PractitionerRole?_lastUpdated=ge{since}")
         });
 
         return parameters;
