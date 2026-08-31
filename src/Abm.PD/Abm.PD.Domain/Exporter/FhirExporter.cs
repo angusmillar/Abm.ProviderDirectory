@@ -99,44 +99,9 @@ public class FhirExporter(
         return BulkExportState.Manifest;
     }
 
-    public IAsyncEnumerable<FhirBulkExportResource> ExportedFileList(
+    public IAsyncEnumerable<FhirBulkExportResource> StreamedExportFileList(
         CancellationToken cancellationToken) => fhirBulkExporter.GetExport(cancellationToken);
-    // {
-    //     if (BulkExportState?.Manifest is null)
-    //     {
-    //         //If there is no Manifest, then there must be no files to return.
-    //         return new List<FhirBulkExportResource>().ToAsyncEnumerable();
-    //     }
-    //
-    //     logger.LogInformation("== Downloading =================================================================");
-    //     logger.LogInformation("JobId {JobId} Begin File Downloading",
-    //         BulkExportState.JobId);
-    //
-    //     yield return fhirBulkExporter.GetExport(cancellationToken);
-    //     // //GetExport streams the NDJSON output files, so this loop never holds more than one resource at a time.
-    //     // int resourceCount = 0;
-    //     // await foreach (FhirBulkExportResource exportResource in fhirBulkExporter.GetExport(cancellationToken))
-    //     // {
-    //     //     resourceCount++;
-    //     //     logger.LogInformation("JobId {JobId} {ResourceType}/{ResourceId} read from line {LineNumber} of {SourceUrl}",
-    //     //         BulkExportState.JobId,
-    //     //         exportResource.Resource.TypeName,
-    //     //         exportResource.Resource.Id,
-    //     //         exportResource.LineNumber,
-    //     //         exportResource.SourceUrl);
-    //     //
-    //     //     await File.WriteAllTextAsync(
-    //     //         @$"C:\Temp\Abm.ProviderDirectory\Output\{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json",
-    //     //         await exportResource.Resource.ToJsonAsync(), cancellationToken);
-    //     // }
-    //     //
-    //     // logger.LogInformation("JobId {JobId} Downloaded {ResourceCount} resource(s) from the export", 
-    //     //     BulkExportState.JobId, 
-    //     //     resourceCount);
-    //     //
-    //     // logger.LogInformation("== Session Ended Completed =====================================================");
-    // }
-
+    
     private void LogExportParameters(
         string jobID,
         Parameters parameters)

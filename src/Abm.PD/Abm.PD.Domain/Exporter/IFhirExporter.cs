@@ -10,6 +10,6 @@ public interface IFhirExporter
         Parameters parameters,
         CancellationToken cancellationToken);
 
-    IAsyncEnumerable<FhirBulkExportResource> ExportedFileList(
+    IAsyncEnumerable<FhirBulkExportResource> StreamedExportFileList(
         CancellationToken cancellationToken);
 }

@@ -51,11 +51,11 @@ public class ConsoleApplication(
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
 
-        PrepairOutputDirectory();
+        PrepareOutputDirectory();
 
         //GetExport streams the NDJSON output files, so this loop never holds more than one resource at a time.
         int resourceCount = 0;
-        await foreach (FhirBulkExportResource exportResource in fhirExporter.ExportedFileList(cancellationToken))
+        await foreach (FhirBulkExportResource exportResource in fhirExporter.StreamedExportFileList(cancellationToken))
         {
             resourceCount++;
             logger.LogInformation("{ResourceType}/{ResourceId} read from line {LineNumber} of {SourceUrl}",
@@ -78,7 +78,7 @@ public class ConsoleApplication(
         EndStopwatch();
     }
 
-    private void PrepairOutputDirectory()
+    private void PrepareOutputDirectory()
     {
         if (!OutputDirectoryInfo.Exists)
         {
