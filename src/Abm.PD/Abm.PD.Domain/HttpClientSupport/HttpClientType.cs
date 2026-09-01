@@ -5,4 +5,6 @@ public static class HttpClientType
 {
     public const string AzurePyroFhirServer = "AzurePyroFhirServer";
     public const string ProviderConnectAustralia = "ProviderConnectAustralia";
+    public const string TargetProviderDirectoryServer = "DevelopmentSmileServer";
+    
 }                                         

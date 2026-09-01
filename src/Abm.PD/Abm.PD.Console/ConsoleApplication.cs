@@ -6,7 +6,9 @@ using Abm.PD.Console.Settings;
 using Abm.PD.Domain.DateTimeSupport;
 using Abm.PD.Domain.Exporter;
 using Abm.PD.Domain.FhirBulkExport;
+using Abm.PD.Domain.HttpClientSupport;
 using Abm.PD.Domain.Models.Manifest;
+using FhirNavigator;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Microsoft.Extensions.Logging;
@@ -26,11 +28,13 @@ namespace Abm.PD.Console;
 public class ConsoleApplication(
     ILogger<ConsoleApplication> logger,
     IOptions<ConsoleApplicationSettings> appSettings,
-    IFhirExporter fhirExporter)
+    IFhirExporter fhirExporter,
+    IFhirNavigatorFactory fhirNavigatorFactory)
 {
     private Stopwatch? Stopwatch;
     private TimeSpan PollingTimeSpan = TimeSpan.FromSeconds(30);
     private DirectoryInfo OutputDirectoryInfo = new(@"C:\Temp\Abm.ProviderDirectory\Output");
+    
 
     public async Task Run(
         CancellationToken cancellationToken)
@@ -53,21 +57,14 @@ public class ConsoleApplication(
 
         PrepareOutputDirectory();
 
+        IFhirNavigator fhirNavigator = fhirNavigatorFactory.GetFhirNavigator(HttpClientType.TargetProviderDirectoryServer);
+        
         //GetExport streams the NDJSON output files, so this loop never holds more than one resource at a time.
         int resourceCount = 0;
         await foreach (FhirBulkExportResource exportResource in fhirExporter.StreamedExportFileList(cancellationToken))
         {
             resourceCount++;
-            logger.LogInformation("{ResourceType}/{ResourceId} read from line {LineNumber} of {SourceUrl}",
-                exportResource.Resource.TypeName,
-                exportResource.Resource.Id,
-                exportResource.LineNumber,
-                exportResource.SourceUrl);
-
-            await File.WriteAllTextAsync(Path.Combine(
-                    OutputDirectoryInfo.FullName, 
-                    $"{exportResource.Resource.TypeName}-{exportResource.Resource.Id}.json"),
-                await exportResource.Resource.ToJsonAsync(), cancellationToken);
+            await ProcessResource(resourceCount, exportResource, fhirNavigator, cancellationToken);
         }
 
         logger.LogInformation("Downloaded {ResourceCount} resource(s) from the export",
@@ -76,6 +73,35 @@ public class ConsoleApplication(
         logger.LogInformation("== Session Ended Completed =====================================================");
         
         EndStopwatch();
+    }
+
+    private async Task ProcessResource(
+        int resourceCount,
+        FhirBulkExportResource fhirBulkExportResource,
+        IFhirNavigator fhirNavigator,
+        CancellationToken cancellationToken)
+    {
+        LogResource(fhirBulkExportResource);
+
+        
+        
+        
+        await File.WriteAllTextAsync(Path.Combine(
+                OutputDirectoryInfo.FullName, 
+                $"{fhirBulkExportResource.Resource.TypeName}-{fhirBulkExportResource.Resource.Id}.json"),
+            await fhirBulkExportResource.Resource.ToJsonAsync(), cancellationToken);
+        
+        
+    }
+
+    private void LogResource(
+        FhirBulkExportResource resource)
+    {
+        logger.LogInformation("{ResourceType}/{ResourceId} read from line {LineNumber} of {SourceUrl}",
+            resource.Resource.TypeName,
+            resource.Resource.Id,
+            resource.LineNumber,
+            resource.SourceUrl);
     }
 
     private void PrepareOutputDirectory()
