@@ -17,6 +17,11 @@ public static class TestUrls
     public const string PollStatusUrlWithJobId =
         ServiceBaseUrlWithSlash + "$export-poll-status?_jobId=" + JobId;
 
+    /// <summary>
+    /// The address the tests pretend the target provider directory, the server being loaded, lives at.
+    /// </summary>
+    public const string TargetServiceBaseUrl = "https://target-directory.invalid.test/fhir";
+
     public const string PractitionerOutputFileUrl = ServiceBaseUrlWithSlash + "output/Practitioner-1.ndjson";
     public const string OrganizationOutputFileUrl = ServiceBaseUrlWithSlash + "output/Organization-1.ndjson";
 }

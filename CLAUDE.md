@@ -11,12 +11,10 @@ SIT server) over the **HL7 FHIR Bulk Data Export** (Flat FHIR) interface, downlo
 NDJSON output files, and streams the resources out as Firely `Hl7.Fhir.Model.Resource` POCOs ready
 to be consumed into a local repository.
 
-**Current state:** only the *bulk export* half is written — kick-off, poll, delete, and streamed
-download of the manifest's output files. The operations that **insert/persist the downloaded
-resources into a local repository have not been written yet**. There is no local store, no
-persistence layer and no resource-loading pipeline in the solution at this stage. `ConsoleApplication`
-currently stands in for that by writing each downloaded resource to a JSON file under
-`C:\Temp\Abm.ProviderDirectory\Output\`.
+**Current state:** the *bulk export* half — kick-off, poll, delete, and streamed download of the manifest's
+output files — and the *load* half, `FhirBatchLoader`, which commits the streamed resources to the target
+provider directory as FHIR batch Bundles of PUT entries. There is deliberately **no local store and no
+intermediate disk write**: resources go from the download stream into a batch and straight out to the target.
 
 Unit tests live in `Abm.PD.Tests` (xunit). They never touch the live server — see *Testing* below.
 
@@ -34,7 +32,8 @@ src/Abm.PD/
     TestDoubles/               StubHttpMessageHandler and the exporter harness built over it
     TestData/                  Canned Output Manifest and NDJSON payloads
   Abm.PD.Domain/               All the reusable logic
-    FhirBulkExport/            IFhirBulkExporter / FhirBulkExporter — the core of the solution
+    FhirBulkExport/            IFhirBulkExporter / FhirBulkExporter — the export half
+    Loader/                    IFhirBatchLoader / FhirBatchLoader — the load half, batch PUTs to the target
     Models/Manifest/           POCOs for the Bulk Data "Output Manifest" JSON
     NdJsonSupport/             NdJsonReader — streaming NDJSON line reader
     FhirSupport/               OperationOutcomeSupport
@@ -64,6 +63,18 @@ dotnet run --project src/Abm.PD/Abm.PD.Console
   `IHttpClientFactory`, both keyed by repository `Code`. Configured from the `FhirNavigator` section
   and registered by `AddProviderDirectoryServices`. It transitively brings in the Firely SDK
   (`Hl7.Fhir.R4` / `Hl7.Fhir.Base`) — there is no direct Firely package reference.
+  - **This package is ours** — the source is local at `C:\GitRepo\angusmillar\FhirNavigator\src`
+    (`FhirNavigator.sln`). Read it rather than inferring the package's behaviour, and when a fix
+    belongs in the library, make it there rather than working around it here.
+  - `AddFhirNavigator` gives each repository `Code` a named client: `BaseAddress`, a User-Agent, a
+    `ProxyHttpClientHandler` primary handler (an `HttpClientHandler`, so the `SocketsHttpHandler`
+    settings are not reachable through it), then `RetryDelegatingHandler` and
+    `AuthenticationDelegatingHandler`. `IFhirHttpClientFactory` wraps that same named `HttpClient`,
+    so the Firely `FhirClient` and the raw client share one handler pipeline.
+  - Nothing sets `HttpClient.Timeout`, so the factory default of 100 seconds applies. It is
+    end-to-end and includes the response body read, which bounds how long `GetExport` may stream —
+    see *Streaming is deliberate* below. `AuthenticationDelegatingHandler` attaches the configured
+    credential to every request through the client, whatever host the URL names.
 - **Microsoft.Extensions.Hosting** — Generic Host, options binding with
   `ValidateDataAnnotations().ValidateOnStart()`.
 - **Serilog** — configured entirely from the `Serilog` config section; the default logging providers
@@ -99,7 +110,9 @@ that an export of any size never holds more than one resource in memory. Specifi
 
 - `SendAsync` uses `HttpCompletionOption.ResponseHeadersRead` — without it the whole file buffers.
 - `GetDecompressedStream` handles gzip/deflate/br for when the handler has not already decompressed.
-- Do not introduce a `.ToList()`, collect into a list, or read an output file into a `string`.
+- Do not read an output file into a `string`, and do not collect the resources into anything that grows with
+  the size of the export. The invariant is *bounded* memory, not one resource at a time: `FhirBatchLoader`'s
+  batch list and its retained failure list are both capped, which is why they are allowed.
 
 ### Manifest handling notes
 
@@ -112,6 +125,30 @@ that an export of any size never holds more than one resource in memory. Specifi
 - Manifest deserialization uses `System.Text.Json` with `JsonSerializerDefaults.Web`; the FHIR
   resources inside the NDJSON need Firely's converters (`.ForFhir(typeof(ModelInfo).Assembly)`).
   The two serializer configurations are not interchangeable.
+
+## The load flow
+
+`FhirBatchLoader.Load` takes the exporter's `IAsyncEnumerable` straight from `GetExport` and never lets it
+touch disk. It gathers resources until `FhirBatchLoaderSettings.BatchSize` is reached, then commits them as one
+FHIR **batch** Bundle of **PUT** entries to `HttpClientType.TargetProviderDirectoryServer`.
+
+- **Batch, not transaction:** entries are processed independently, so one refused resource does not lose the
+  bundle and there is no long server-side transaction over hundreds of writes.
+- **PUT, not POST:** the resources carry the ids the source directory published, and an update is idempotent, so
+  a retried commit or a restarted load replays without duplicating. No `IfMatch` is sent — a version aware
+  update would be refused by the stub the target created for a not-yet-loaded reference.
+- **No dependency ordering is done here.** The target server creates a stub for any reference it has not seen
+  and fills it in when the real resource arrives later in the load. This is why the load order noted in
+  `ConsoleApplication.cs` no longer constrains the loader.
+- **A batch answers 200 OK whatever became of its entries.** The per entry `response.status` is the only report
+  that a resource was refused, so it is read for every entry and matched back to its `SourceUrl` and
+  `LineNumber` by position, which the specification requires the server to preserve.
+- **The commit is pipelined one deep.** The previous commit is awaited only once the next batch has filled, so
+  the export's response stream keeps being read while the target works. A stalled read is what lets a gateway
+  decide the download connection is idle and reset it. `Load_KeepsReadingTheExportWhileABatchCommitIsInFlight`
+  asserts both halves of that: the read runs one batch ahead, and no further.
+- Per resource failures are collected and the load continues; a failure of the commit itself is systemic and
+  stops the load. Only `MaxRetainedFailures` failures are retained, though all are counted and logged.
 
 ## Configuration and secrets
 

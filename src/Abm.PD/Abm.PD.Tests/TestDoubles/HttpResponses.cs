@@ -2,6 +2,8 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Serialization;
 
 namespace Abm.PD.Tests.TestDoubles;
 
@@ -125,6 +127,54 @@ public static class HttpResponses
         content.Headers.ContentType = new MediaTypeHeaderValue("application/fhir+ndjson");
 
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+    }
+
+    /// <summary>
+    /// A batch-response Bundle answering every entry with the same status, as the target server sends when a
+    /// whole batch was accepted.
+    /// </summary>
+    public static HttpResponseMessage BatchResponseAll(
+        string status,
+        int entryCount)
+    {
+        return BatchResponse(Enumerable.Repeat<(string, string?)>((status, null), entryCount).ToArray());
+    }
+
+    /// <summary>
+    /// A batch-response Bundle with one entry per supplied status, in the order the request entries were sent.
+    /// A batch answers 200 OK however the individual entries fared, so this is the only place a refused resource
+    /// is reported.
+    /// </summary>
+    public static HttpResponseMessage BatchResponse(
+        params (string Status, string? Diagnostics)[] entryList)
+    {
+        Bundle responseBundle = new()
+        {
+            Type = Bundle.BundleType.BatchResponse,
+            Entry = entryList.Select(entry => new Bundle.EntryComponent
+            {
+                Response = new Bundle.ResponseComponent
+                {
+                    Status = entry.Status,
+                    Outcome = entry.Diagnostics is null
+                        ? null
+                        : new OperationOutcome
+                        {
+                            Issue =
+                            [
+                                new OperationOutcome.IssueComponent
+                                {
+                                    Severity = OperationOutcome.IssueSeverity.Error,
+                                    Code = OperationOutcome.IssueType.Processing,
+                                    Diagnostics = entry.Diagnostics
+                                }
+                            ]
+                        }
+                }
+            }).ToList()
+        };
+
+        return FhirJson(HttpStatusCode.OK, responseBundle.ToJson());
     }
 
     public static HttpResponseMessage FhirJson(

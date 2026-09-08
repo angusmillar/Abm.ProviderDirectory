@@ -2,7 +2,9 @@
 using Abm.PD.Domain.Exporter;
 using Abm.PD.Domain.FhirBulkExport;
 using Abm.PD.Domain.HttpClientSupport;
+using Abm.PD.Domain.Loader;
 using Abm.PD.Domain.Settings;
+using Abm.PD.Domain.Writer;
 using FhirNavigator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,17 +38,37 @@ public static class ServiceCollectionExtension
             settings.Proxy = fhirNavigatorSettings.Proxy;
         });
         
-        //Ensure the FHIR bulk download HTTP client has an extended/infinte timeout
-        services.Configure<HttpClientFactoryOptions>(
+        //HttpClient.Timeout is end to end and covers reading the response body, not just the wait for its
+        //headers, and FhirNavigator sets no timeout so both clients would otherwise carry IHttpClientFactory's
+        //100 second default. On the export client that would bound how long the caller may take to consume the
+        //streamed output files; on the target client it would bound a whole batch commit. Neither belongs on a
+        //clock — stopping the work is the CancellationToken's job.
+        string[] extendedTimeoutClientList =
+        [
             HttpClientType.ProviderConnectAustralia,
-            options => options.HttpClientActions.Add(
-                httpClient => httpClient.Timeout = Timeout.InfiniteTimeSpan));
-        
+            HttpClientType.TargetProviderDirectoryServer
+        ];
+
+        foreach (string httpClientName in extendedTimeoutClientList)
+        {
+            services.Configure<HttpClientFactoryOptions>(
+                httpClientName,
+                options => options.HttpClientActions.Add(
+                    httpClient => httpClient.Timeout = Timeout.InfiniteTimeSpan));
+        }
+
+        services.AddOptions<FhirBatchLoaderSettings>()
+            .Bind(configuration.GetSection(FhirBatchLoaderSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // Add Services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         
         services.AddScoped<IFhirBulkExporter, FhirBulkExporter>();
         services.AddScoped<IFhirExporter, FhirExporter>();
+        services.AddScoped<IFhirBatchLoader, FhirBatchLoader>();
+        services.AddScoped<IFhirDiskWriter, FhirDiskWriter>();
         
         return services;
     }
