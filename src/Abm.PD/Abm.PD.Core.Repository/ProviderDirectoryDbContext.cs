@@ -10,8 +10,10 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // EF Core's default table-naming convention takes the DbSet property name (Resources,
-        // plural); snake-casing alone would produce "resources". Pin it singular explicitly.
-        modelBuilder.Entity<Resource>().ToTable("resource");
+        ArgumentNullException.ThrowIfNull(modelBuilder);
+        
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ProviderDirectoryDbContext).Assembly);
+        
+        base.OnModelCreating(modelBuilder);
     }
 }

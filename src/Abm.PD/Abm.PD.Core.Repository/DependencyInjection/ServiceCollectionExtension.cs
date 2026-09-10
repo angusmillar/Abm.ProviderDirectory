@@ -1,6 +1,4 @@
 using Abm.PD.Core.Domain.Repositories;
-using Abm.PD.Core.Repository;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
