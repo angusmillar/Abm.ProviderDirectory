@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace Abm.PD.BulkExport.Models.Manifest;
+namespace Abm.PD.BulkExport.Models;
 
 /// <summary>
 /// An entry in the Output Manifest's "outcome" array (named "error" in v2.0.0), describing one file of

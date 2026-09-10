@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace Abm.PD.BulkExport.Models.Manifest;
+namespace Abm.PD.BulkExport.Models;
 
 /// <summary>
 /// The Output Manifest returned in the body of a 200 OK response from the bulk data export status endpoint.

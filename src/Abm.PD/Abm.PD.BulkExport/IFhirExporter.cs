@@ -1,5 +1,5 @@
 ﻿using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Models;
 using Hl7.Fhir.Model;
 
 namespace Abm.PD.BulkExport;

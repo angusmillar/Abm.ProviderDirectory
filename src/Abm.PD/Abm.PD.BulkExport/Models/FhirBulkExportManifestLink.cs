@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Abm.PD.BulkExport.Models.Manifest;
+namespace Abm.PD.BulkExport.Models;
 
 /// <summary>
 /// An entry in the Output Manifest's "link" array, pointing at a further page of the manifest when the client

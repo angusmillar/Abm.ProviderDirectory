@@ -11,7 +11,7 @@ using Abm.PD.BulkExport.DateTimeSupport;
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirSupport;
 using Abm.PD.BulkExport.HttpClientSupport;
-using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.NdJsonSupport;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Utility;

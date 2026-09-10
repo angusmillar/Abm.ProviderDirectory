@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Abm.PD.BulkExport.Models.Manifest;
+namespace Abm.PD.BulkExport.Models;
 
 /// <summary>
 /// A count of the OperationOutcome records in an outcome file that carry a given issue severity.

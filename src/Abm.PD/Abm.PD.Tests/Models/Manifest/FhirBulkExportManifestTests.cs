@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Models;
 using Abm.PD.Tests.TestData;
 
 namespace Abm.PD.Tests.Models.Manifest;

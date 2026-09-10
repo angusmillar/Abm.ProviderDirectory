@@ -2,7 +2,7 @@
 using Abm.PD.BulkExport;
 using Abm.PD.Console.Settings;
 using Abm.PD.BulkExport.Loader;
-using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;

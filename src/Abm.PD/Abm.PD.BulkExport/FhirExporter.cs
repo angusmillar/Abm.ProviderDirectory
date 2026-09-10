@@ -1,6 +1,6 @@
 ﻿using Abm.PD.BulkExport.DateTimeSupport;
 using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Models;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 using Task = System.Threading.Tasks.Task;

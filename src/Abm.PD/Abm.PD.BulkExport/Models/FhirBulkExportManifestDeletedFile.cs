@@ -1,34 +1,28 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace Abm.PD.BulkExport.Models.Manifest;
+namespace Abm.PD.BulkExport.Models;
 
 /// <summary>
-/// An entry in the Output Manifest's "output" array, describing one generated data file.
+/// An entry in the Output Manifest's "deleted" array, describing one file of transaction Bundles that carry
+/// delete requests for resources removed since the requested _since instant.
 /// </summary>
-public sealed record FhirBulkExportManifestOutputFile
+public sealed record FhirBulkExportManifestDeletedFile
 {
     /// <summary>
-    /// The FHIR resource type contained in the file. Required when the manifest has no outputOrganizedBy value,
-    /// otherwise optional (0..1).
+    /// The resource type of the file's contents, which is always "Bundle" when present. Optional (0..1).
     /// </summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
 
     /// <summary>
-    /// Absolute URL of the file. Required (1..1).
+    /// Absolute URL of the file containing the deletion records. Required (1..1).
     /// </summary>
     [JsonPropertyName("url")]
     public required string Url { get; init; }
 
     /// <summary>
-    /// URL of the next file, when a block of resources spans more than one file. Optional (0..1).
-    /// </summary>
-    [JsonPropertyName("continuesInFile")]
-    public string? ContinuesInFile { get; init; }
-
-    /// <summary>
-    /// The number of resources in the file. Optional (0..1).
+    /// The number of deleted resource records in the file. Optional (0..1).
     /// </summary>
     [JsonPropertyName("count")]
     public long? Count { get; init; }
