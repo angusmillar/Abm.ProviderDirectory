@@ -1,5 +1,5 @@
+using Abm.PD.Core.Api.Endpoints;
 using Abm.PD.Core.Api.Settings;
-using Abm.PD.Core.Domain.Repositories;
 using Abm.PD.Core.Repository;
 using Abm.PD.Core.Repository.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +30,6 @@ if (databaseSettings.RunMigrationsOnStartup)
     await dbContext.Database.MigrateAsync();
 }
 
-app.MapGet("/resources", async (IResourceRepository resourceRepository, CancellationToken cancellationToken) =>
-    await resourceRepository.GetAllAsync(cancellationToken));
+app.MapResourceEndpoints();
 
 app.Run();
