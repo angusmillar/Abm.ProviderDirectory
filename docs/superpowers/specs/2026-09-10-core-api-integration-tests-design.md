@@ -98,12 +98,12 @@ classes share one Postgres + one API container rather than spinning up fresh one
 
 `InitializeAsync`:
 1. Create a Testcontainers `INetwork`.
-2. Start `PostgreSqlBuilder`'s container on that network with alias `postgres`, using the module's
+2. Start `PostgreSqlBuilder`'s container on that network with alias `postgres-test`, using the module's
    built-in readiness wait.
 3. Build the API image from the Dockerfile via `ImageFromDockerfileBuilder` (context `src/Abm.PD/`,
    dockerfile `Abm.PD.Core.Api/Dockerfile`).
 4. Start the API container on the same network with:
-   - `ConnectionStrings__ProviderDirectoryDb` = `Host=postgres;Port=5432;Database=...;Username=...;Password=...`
+   - `ConnectionStrings__ProviderDirectoryDb` = `Host=postgres-test;Port=5432;Database=...;Username=...;Password=...`
      (container-to-container, via the network alias — not the Postgres container's host-mapped port)
    - `Database__RunMigrationsOnStartup=true` — same mechanism `appsettings.Development.json` already
      uses; migrations run automatically before the app starts listening, no separate migration step
