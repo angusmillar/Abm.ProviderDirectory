@@ -18,8 +18,19 @@ public static class ServiceCollectionExtension
         this IServiceCollection services, 
         IConfiguration configuration)
     {
+        //Load all settings
         services.AddOptions<ServiceDefaultTimeZoneSettings>()
             .Bind(configuration.GetSection(ServiceDefaultTimeZoneSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        
+        services.AddOptions<FhirBatchLoaderSettings>()
+            .Bind(configuration.GetSection(FhirBatchLoaderSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        
+        services.AddOptions<FhirDiskWriterSettings>()
+            .Bind(configuration.GetSection(FhirDiskWriterSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
         
@@ -40,7 +51,7 @@ public static class ServiceCollectionExtension
         
         //HttpClient.Timeout is end to end and covers reading the response body, not just the wait for its
         //headers, and FhirNavigator sets no timeout so both clients would otherwise carry IHttpClientFactory's
-        //100 second default. On the export client that would bound how long the caller may take to consume the
+        //100-second default. On the export client that would bound how long the caller may take to consume the
         //streamed output files; on the target client it would bound a whole batch commit. Neither belongs on a
         //clock — stopping the work is the CancellationToken's job.
         string[] extendedTimeoutClientList =
@@ -56,15 +67,9 @@ public static class ServiceCollectionExtension
                 options => options.HttpClientActions.Add(
                     httpClient => httpClient.Timeout = Timeout.InfiniteTimeSpan));
         }
-
-        services.AddOptions<FhirBatchLoaderSettings>()
-            .Bind(configuration.GetSection(FhirBatchLoaderSettings.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
+        
         // Add Services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
-        
         services.AddScoped<IFhirBulkExporter, FhirBulkExporter>();
         services.AddScoped<IFhirExporter, FhirExporter>();
         services.AddScoped<IFhirBatchLoader, FhirBatchLoader>();

@@ -9,11 +9,11 @@ namespace Abm.PD.Domain.Writer;
 
 public class FhirDiskWriter(
     ILogger<FhirDiskWriter> logger,
-    IOptions<FhirBatchLoaderSettings> settings) : IFhirDiskWriter
+    IOptions<FhirDiskWriterSettings> settings) : IFhirDiskWriter
 {
-    private readonly DirectoryInfo OutputDirectoryInfo = new(@"C:\Temp\Abm.ProviderDirectory\Output");
+    public DirectoryInfo OutputDirectoryInfo { get; } = new(settings.Value.OutputDirectoryPath);
 
-    public async Task Load(
+    public async Task Write(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
         CancellationToken cancellationToken)
     {

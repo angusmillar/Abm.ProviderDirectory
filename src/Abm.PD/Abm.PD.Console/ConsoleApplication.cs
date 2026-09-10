@@ -11,13 +11,14 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Abm.PD.Console;
 
-// Load order based on resource references
+// The x6 Resource for Provider Directory
 // Practitioner
 // Endpoint
 // Organization
 //  Location
 //  HealthcareService
 //  PractitionerRole
+//Provenance
 
 public class ConsoleApplication(
     ILogger<ConsoleApplication> logger,
@@ -39,8 +40,10 @@ public class ConsoleApplication(
         logger.LogInformation("FHIR Bulk Data Export session started");
         
         Parameters parameters = FhirExportQuery.GetByPostCode();
+        
         // Parameters parameters = FhirExportQuery.GetSmallExportParametersResource(
         //     fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"));
+        
         // Parameters parameters = FhirExportQuery.GetPractitionerLargeExportParametersResource(
         //     fromDateTime: DateTimeSupport.GetDateTimeOffset("2020-01-01T00:00:00+10:00"));
 
@@ -48,19 +51,21 @@ public class ConsoleApplication(
             await fhirExporter.RequestDownloadManifest(parameters, cancellationToken);
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
-
-        logger.LogInformation("== Load ========================================================================");
-
+        
+        //Load exported resource into a target FHIR Server
         //The export stream is handed straight to the loader: it batches the resources as they arrive and never
         //holds more than two batches, so the resources go from the download to the target server without ever
         //being collected in full or written to disk.
-        /*FhirBatchLoadResult loadResult = await fhirBatchLoader.Load(
-            exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
-            cancellationToken: cancellationToken);
+        //logger.LogInformation("== Load ========================================================================");
+        // FhirBatchLoadResult loadResult = await fhirBatchLoader.Load(
+        //     exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
+        //     cancellationToken: cancellationToken);
+        // LogFhirBatchLoadResult(loadResult);
         
-        LogLoadResult(loadResult);*/
-        
-        await fhirDiskWriter.Load(exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
+        //Write exported resource to a directory on disk
+        logger.LogInformation("== Output to: {Directory} ======================================================="
+            , fhirDiskWriter.OutputDirectoryInfo);
+        await fhirDiskWriter.Write(exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
             cancellationToken: cancellationToken);
         
         logger.LogInformation("== Session Ended Completed =====================================================");
@@ -68,7 +73,7 @@ public class ConsoleApplication(
         EndStopwatch();
     }
 
-    private void LogLoadResult(
+    private void LogFhirBatchLoadResult(
         FhirBatchLoadResult loadResult)
     {
         logger.LogInformation(
@@ -100,9 +105,7 @@ public class ConsoleApplication(
                 string.Join("; ", failure.ErrorMessages));
         }
     }
-
     
-
     private void EndStopwatch()
     {
         ArgumentNullException.ThrowIfNull(Stopwatch);

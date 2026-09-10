@@ -4,7 +4,8 @@ namespace Abm.PD.Domain.Writer;
 
 public interface IFhirDiskWriter
 {
-    Task Load(
+    DirectoryInfo OutputDirectoryInfo { get; }
+    Task Write(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
         CancellationToken cancellationToken);
 }
