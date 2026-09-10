@@ -77,6 +77,12 @@ public class ResourceCrudTests(IntegrationTestFixture fixture) : IntegrationTest
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Resource? updated = await updateResponse.Content.ReadFromJsonAsync<Resource>();
         Assert.Equal(updateRequest.ResourceId, updated!.ResourceId);
+
+        // The PUT response reflects the tracked in-memory entity - fetch it back to prove the
+        // change actually persisted to Postgres.
+        Resource? fetched = await HttpClient.GetFromJsonAsync<Resource>($"/resources/{created.Id}");
+        Assert.NotNull(fetched);
+        Assert.Equal(updateRequest.ResourceId, fetched!.ResourceId);
     }
 
     [Fact]
