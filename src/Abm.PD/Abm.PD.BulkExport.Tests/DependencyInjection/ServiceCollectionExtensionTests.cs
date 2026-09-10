@@ -1,13 +1,11 @@
-using Abm.PD.BulkExport.DateTimeSupport;
 using Abm.PD.BulkExport.DependencyInjection;
 using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.BulkExport.HttpClientSupport;
-using Abm.PD.BulkExport.Settings;
 using FhirNavigator.FhirHttpClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Abm.Core.Time;
 
 namespace Abm.PD.BulkExport.Tests.DependencyInjection;
 
@@ -111,10 +109,10 @@ public class ServiceCollectionExtensionTests
     {
         using ServiceProvider serviceProvider = BuildProvider();
 
-        ServiceDefaultTimeZoneSettings settings =
-            serviceProvider.GetRequiredService<IOptions<ServiceDefaultTimeZoneSettings>>().Value;
+        TimeSettings settings =
+            serviceProvider.GetRequiredService<IOptions<TimeSettings>>().Value;
 
-        Assert.Equal(TimeSpan.FromHours(10), settings.TimeZoneTimeSpan);
+        Assert.Equal(TimeSpan.FromHours(10), settings.ServiceDefaultTimeZone);
     }
 
     [Fact]
@@ -125,9 +123,9 @@ public class ServiceCollectionExtensionTests
             Configuration(new Dictionary<string, string?> { ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "-01:00" }));
 
         OptionsValidationException exception = Assert.Throws<OptionsValidationException>(
-            () => serviceProvider.GetRequiredService<IOptions<ServiceDefaultTimeZoneSettings>>().Value);
+            () => serviceProvider.GetRequiredService<IOptions<TimeSettings>>().Value);
 
-        Assert.Contains(nameof(ServiceDefaultTimeZoneSettings.TimeZoneTimeSpan), string.Join("; ", exception.Failures));
+        Assert.Contains(nameof(TimeSettings.ServiceDefaultTimeZone), string.Join("; ", exception.Failures));
     }
 
     [Fact]
@@ -137,7 +135,7 @@ public class ServiceCollectionExtensionTests
             Configuration(new Dictionary<string, string?> { ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "25:00" }));
 
         Assert.Throws<InvalidOperationException>(
-            () => serviceProvider.GetRequiredService<IOptions<ServiceDefaultTimeZoneSettings>>().Value);
+            () => serviceProvider.GetRequiredService<IOptions<TimeSettings>>().Value);
     }
 
     [Fact]

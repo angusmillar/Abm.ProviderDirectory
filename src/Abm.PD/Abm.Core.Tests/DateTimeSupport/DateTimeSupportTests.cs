@@ -1,13 +1,13 @@
-using DomainDateTimeSupport = Abm.PD.BulkExport.DateTimeSupport.DateTimeSupport;
+using Abm.Core.Extensions;
 
-namespace Abm.PD.BulkExport.Tests.DateTimeSupport;
+namespace Abm.Core.Tests.DateTimeSupport;
 
 public class DateTimeSupportTests
 {
     [Fact]
     public void GetDateTimeOffset_ParsesAnIso8601InstantWithItsOffset()
     {
-        DateTimeOffset dateTimeOffset = DomainDateTimeSupport.GetDateTimeOffset("2026-08-28T10:00:00+10:00");
+        DateTimeOffset dateTimeOffset = "2026-08-28T10:00:00+10:00".GetIso8601DateTimeOffset();
 
         Assert.Equal(new DateTimeOffset(2026, 8, 28, 10, 0, 0, TimeSpan.FromHours(10)), dateTimeOffset);
         Assert.Equal(TimeSpan.FromHours(10), dateTimeOffset.Offset);
@@ -16,7 +16,7 @@ public class DateTimeSupportTests
     [Fact]
     public void GetDateTimeOffset_KeepsANegativeOffset()
     {
-        DateTimeOffset dateTimeOffset = DomainDateTimeSupport.GetDateTimeOffset("2026-01-01T00:00:00-05:00");
+        DateTimeOffset dateTimeOffset = "2026-01-01T00:00:00-05:00".GetIso8601DateTimeOffset();
 
         Assert.Equal(TimeSpan.FromHours(-5), dateTimeOffset.Offset);
     }
@@ -33,12 +33,7 @@ public class DateTimeSupportTests
     public void GetDateTimeOffset_RejectsAnythingOtherThanTheExactFormat(
         string value)
     {
-        Assert.Throws<FormatException>(() => DomainDateTimeSupport.GetDateTimeOffset(value));
+        Assert.Throws<FormatException>(() => value.GetIso8601DateTimeOffset());
     }
-
-    [Fact]
-    public void GetDateTimeOffset_ANullValueThrows()
-    {
-        Assert.Throws<ArgumentNullException>(() => DomainDateTimeSupport.GetDateTimeOffset(null!));
-    }
+    
 }

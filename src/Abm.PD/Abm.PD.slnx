@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Abm.Core.Tests/Abm.Core.Tests.csproj" />
+  <Project Path="Abm.Core/Abm.Core.csproj" />
   <Project Path="Abm.PD.BulkExport.Tests/Abm.PD.BulkExport.Tests.csproj" />
   <Project Path="Abm.PD.BulkExport/Abm.PD.BulkExport.csproj" />
   <Project Path="Abm.PD.Console/Abm.PD.Console.csproj" />

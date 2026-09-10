@@ -1,4 +1,4 @@
-﻿namespace Abm.PD.BulkExport.DateTimeSupport;
+﻿namespace Abm.Core.Time;
 
 public interface IDateTimeProvider
 {

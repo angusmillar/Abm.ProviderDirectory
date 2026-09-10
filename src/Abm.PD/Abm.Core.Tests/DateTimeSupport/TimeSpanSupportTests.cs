@@ -1,7 +1,7 @@
 using System.Globalization;
-using Abm.PD.BulkExport.DateTimeSupport;
+using Abm.Core.Extensions;
 
-namespace Abm.PD.BulkExport.Tests.DateTimeSupport;
+namespace Abm.Core.Tests.DateTimeSupport;
 
 public class TimeSpanSupportTests
 {

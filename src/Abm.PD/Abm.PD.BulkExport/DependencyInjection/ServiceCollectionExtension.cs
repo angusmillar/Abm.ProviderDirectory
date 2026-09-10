@@ -1,4 +1,4 @@
-﻿using Abm.PD.BulkExport.DateTimeSupport;
+﻿using Abm.Core.Time;
 using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.BulkExport.HttpClientSupport;
 using Abm.PD.BulkExport.Loader;
@@ -18,8 +18,8 @@ public static class ServiceCollectionExtension
         IConfiguration configuration)
     {
         //Load all settings
-        services.AddOptions<ServiceDefaultTimeZoneSettings>()
-            .Bind(configuration.GetSection(ServiceDefaultTimeZoneSettings.SectionName))
+        services.AddOptions<TimeSettings>()
+            .Bind(configuration.GetSection(TimeSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
         

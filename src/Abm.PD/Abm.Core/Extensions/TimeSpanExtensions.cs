@@ -1,6 +1,6 @@
-﻿namespace Abm.PD.BulkExport.DateTimeSupport;
+﻿namespace Abm.Core.Extensions;
 
-public static class TimeSpanSupport
+public static class TimeSpanExtensions
 {
     /// <summary>
     /// Formats a TimeSpan as a short human-readable narrative, e.g.

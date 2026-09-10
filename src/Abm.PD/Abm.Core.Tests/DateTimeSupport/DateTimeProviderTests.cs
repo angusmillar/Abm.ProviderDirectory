@@ -1,8 +1,7 @@
-using Abm.PD.BulkExport.DateTimeSupport;
-using Abm.PD.BulkExport.Settings;
+using Abm.Core.Time;
 using Microsoft.Extensions.Options;
 
-namespace Abm.PD.BulkExport.Tests.DateTimeSupport;
+namespace Abm.Core.Tests.DateTimeSupport;
 
 public class DateTimeProviderTests
 {
@@ -10,7 +9,7 @@ public class DateTimeProviderTests
         TimeSpan timeZoneTimeSpan)
     {
         return new DateTimeProvider(
-            Options.Create(new ServiceDefaultTimeZoneSettings { TimeZoneTimeSpan = timeZoneTimeSpan }));
+            Options.Create(new TimeSettings { ServiceDefaultTimeZone = timeZoneTimeSpan }));
     }
 
     [Theory]
@@ -41,7 +40,7 @@ public class DateTimeProviderTests
     [Fact]
     public void Now_DefaultsToTheMachinesLocalOffsetWhenNothingIsConfigured()
     {
-        DateTimeOffset now = new DateTimeProvider(Options.Create(new ServiceDefaultTimeZoneSettings())).Now;
+        DateTimeOffset now = new DateTimeProvider(Options.Create(new TimeSettings())).Now;
 
         Assert.Equal(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow), now.Offset);
     }

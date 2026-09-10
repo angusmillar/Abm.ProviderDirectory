@@ -1,4 +1,4 @@
-using Abm.PD.BulkExport.DateTimeSupport;
+using Abm.Core.Time;
 
 namespace Abm.PD.BulkExport.Tests.TestDoubles;
 

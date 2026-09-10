@@ -7,7 +7,7 @@ using FhirNavigator.FhirHttpClient;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
 using System.Web;
-using Abm.PD.BulkExport.DateTimeSupport;
+using Abm.Core.Time;
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirSupport;
 using Abm.PD.BulkExport.HttpClientSupport;
