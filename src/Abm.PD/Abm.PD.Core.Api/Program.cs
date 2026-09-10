@@ -44,4 +44,5 @@ app.Run();
 
 // Required for WebApplicationFactory<Program> in Abm.PD.Core.Api.Tests - top-level statements
 // otherwise generate an internal Program class the test assembly cannot reference.
+// ReSharper disable once ClassNeverInstantiated.Global
 public partial class Program { }
