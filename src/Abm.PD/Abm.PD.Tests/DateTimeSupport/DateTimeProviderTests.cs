@@ -1,5 +1,5 @@
-using Abm.PD.Domain.DateTimeSupport;
-using Abm.PD.Domain.Settings;
+using Abm.PD.BulkExport.DateTimeSupport;
+using Abm.PD.BulkExport.Settings;
 using Microsoft.Extensions.Options;
 
 namespace Abm.PD.Tests.DateTimeSupport;

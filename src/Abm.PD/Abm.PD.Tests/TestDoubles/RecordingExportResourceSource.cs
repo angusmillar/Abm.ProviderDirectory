@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Abm.PD.Domain.FhirBulkExport;
+using Abm.PD.BulkExport.FhirBulkExport;
 using Hl7.Fhir.Model;
 using Task = System.Threading.Tasks.Task;
 

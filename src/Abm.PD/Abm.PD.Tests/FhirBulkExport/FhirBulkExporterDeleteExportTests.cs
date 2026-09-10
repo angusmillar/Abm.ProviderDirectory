@@ -1,5 +1,5 @@
 using System.Net;
-using Abm.PD.Domain.FhirBulkExport;
+using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.Tests.TestData;
 using Abm.PD.Tests.TestDoubles;
 using Task = System.Threading.Tasks.Task;
@@ -181,7 +181,7 @@ public class FhirBulkExporterDeleteExportTests
 
         await harness.Exporter.DeleteExport(CancellationToken.None);
 
-        await Assert.ThrowsAsync<Domain.Exceptions.FhirBulkExportException>(
+        await Assert.ThrowsAsync<BulkExport.Exceptions.FhirBulkExportException>(
             () => harness.Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), CancellationToken.None));
     }
 }

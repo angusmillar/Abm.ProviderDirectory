@@ -1,7 +1,7 @@
 using System.Net;
-using Abm.PD.Domain.Exceptions;
-using Abm.PD.Domain.FhirBulkExport;
-using Abm.PD.Domain.Loader;
+using Abm.PD.BulkExport.Exceptions;
+using Abm.PD.BulkExport.FhirBulkExport;
+using Abm.PD.BulkExport.Loader;
 using Abm.PD.Tests.TestDoubles;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;

@@ -1,7 +1,7 @@
 ﻿using Abm.PD.Console;
 using Abm.PD.Console.Settings;
 using Microsoft.Extensions.DependencyInjection;
-using Abm.PD.Domain.DependencyInjection;
+using Abm.PD.BulkExport.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;

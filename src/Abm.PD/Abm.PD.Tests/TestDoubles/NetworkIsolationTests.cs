@@ -30,7 +30,7 @@ public class NetworkIsolationTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await foreach (Domain.FhirBulkExport.FhirBulkExportResource _ in harness.Exporter.GetExport(CancellationToken.None))
+            await foreach (BulkExport.FhirBulkExport.FhirBulkExportResource _ in harness.Exporter.GetExport(CancellationToken.None))
             {
             }
         });

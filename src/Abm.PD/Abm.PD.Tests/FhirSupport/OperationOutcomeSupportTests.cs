@@ -1,4 +1,4 @@
-using Abm.PD.Domain.FhirSupport;
+using Abm.PD.BulkExport.FhirSupport;
 using Hl7.Fhir.Model;
 
 namespace Abm.PD.Tests.FhirSupport;

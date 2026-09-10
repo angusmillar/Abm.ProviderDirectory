@@ -1,6 +1,6 @@
-using Abm.PD.Domain.FhirBulkExport;
-using Abm.PD.Domain.Loader;
-using Abm.PD.Domain.Settings;
+using Abm.PD.BulkExport.FhirBulkExport;
+using Abm.PD.BulkExport.Loader;
+using Abm.PD.BulkExport.Settings;
 using System.Text.Json;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;

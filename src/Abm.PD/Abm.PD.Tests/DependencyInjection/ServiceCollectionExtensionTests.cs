@@ -1,8 +1,8 @@
-using Abm.PD.Domain.DateTimeSupport;
-using Abm.PD.Domain.DependencyInjection;
-using Abm.PD.Domain.FhirBulkExport;
-using Abm.PD.Domain.HttpClientSupport;
-using Abm.PD.Domain.Settings;
+using Abm.PD.BulkExport.DateTimeSupport;
+using Abm.PD.BulkExport.DependencyInjection;
+using Abm.PD.BulkExport.FhirBulkExport;
+using Abm.PD.BulkExport.HttpClientSupport;
+using Abm.PD.BulkExport.Settings;
 using FhirNavigator.FhirHttpClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

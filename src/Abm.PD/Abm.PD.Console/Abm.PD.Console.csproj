@@ -38,7 +38,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\Abm.PD.Domain\Abm.PD.Domain.csproj" />
+      <ProjectReference Include="..\Abm.PD.BulkExport\Abm.PD.BulkExport.csproj" />
     </ItemGroup>
 
 </Project>

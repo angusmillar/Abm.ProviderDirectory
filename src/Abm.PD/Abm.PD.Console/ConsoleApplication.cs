@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics;
+using Abm.PD.BulkExport;
 using Abm.PD.Console.Settings;
-using Abm.PD.Domain.Exporter;
-using Abm.PD.Domain.Loader;
-using Abm.PD.Domain.Models.Manifest;
-using Abm.PD.Domain.Writer;
+using Abm.PD.BulkExport.Loader;
+using Abm.PD.BulkExport.Models.Manifest;
+using Abm.PD.BulkExport.Writer;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

@@ -1,4 +1,4 @@
-using Abm.PD.Domain.FhirBulkExport;
+using Abm.PD.BulkExport.FhirBulkExport;
 using Hl7.Fhir.Rest;
 using Microsoft.Extensions.Logging.Abstractions;
 

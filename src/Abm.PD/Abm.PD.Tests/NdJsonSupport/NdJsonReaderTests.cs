@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using Abm.PD.Domain.Exceptions;
-using Abm.PD.Domain.NdJsonSupport;
+using Abm.PD.BulkExport.Exceptions;
+using Abm.PD.BulkExport.NdJsonSupport;
 using Abm.PD.Tests.TestDoubles;
 
 namespace Abm.PD.Tests.NdJsonSupport;
