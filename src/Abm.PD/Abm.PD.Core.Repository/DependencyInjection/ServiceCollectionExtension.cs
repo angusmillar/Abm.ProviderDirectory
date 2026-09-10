@@ -1,4 +1,5 @@
 using Abm.PD.Core.Domain.Repositories;
+using Abm.PD.Core.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,13 +12,18 @@ public static class ServiceCollectionExtension
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        string connectionString = configuration.GetConnectionString("ProviderDirectoryDb")
-            ?? throw new InvalidOperationException(
+        string? connectionString = configuration.GetConnectionString("ProviderDirectoryDb");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
                 "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
+        }
 
-        services.AddDbContext<ProviderDirectoryDbContext>(options => options
-            .UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure())
-            .UseSnakeCaseNamingConvention());
+        services.AddDbContext<ProviderDirectoryDbContext>(options =>
+            NpgsqlDbContextOptionsSupport.ConfigureProviderDirectoryDbContext(
+                optionsBuilder: options,
+                connectionString: connectionString,
+                enableRetryOnFailure: true));
 
         services.AddScoped<IResourceRepository, ResourceRepository>();
 

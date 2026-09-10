@@ -21,7 +21,10 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ProviderDi
             ?? FallbackDevConnectionString;
 
         DbContextOptionsBuilder<ProviderDirectoryDbContext> optionsBuilder = new();
-        optionsBuilder.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
+        NpgsqlDbContextOptionsSupport.ConfigureProviderDirectoryDbContext(
+            optionsBuilder: optionsBuilder,
+            connectionString: connectionString,
+            enableRetryOnFailure: false);
 
         return new ProviderDirectoryDbContext(optionsBuilder.Options);
     }
