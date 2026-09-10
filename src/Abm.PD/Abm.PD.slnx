@@ -2,5 +2,6 @@
   <Project Path="Abm.PD.BulkExport/Abm.PD.BulkExport.csproj" />
   <Project Path="Abm.PD.Console/Abm.PD.Console.csproj" />
   <Project Path="Abm.PD.Core.Domain/Abm.PD.Core.Domain.csproj" />
+  <Project Path="Abm.PD.Core.Repository/Abm.PD.Core.Repository.csproj" />
   <Project Path="Abm.PD.Tests/Abm.PD.Tests.csproj" />
 </Solution>
