@@ -3,6 +3,7 @@
   <Project Path="Abm.PD.BulkExport/Abm.PD.BulkExport.csproj" />
   <Project Path="Abm.PD.Console/Abm.PD.Console.csproj" />
   <Project Path="Abm.PD.Core.Api/Abm.PD.Core.Api.csproj" />
+  <Project Path="Abm.PD.Core.Api.Tests/Abm.PD.Core.Api.Tests.csproj" />
   <Project Path="Abm.PD.Core.Domain/Abm.PD.Core.Domain.csproj" />
   <Project Path="Abm.PD.Core.Repository/Abm.PD.Core.Repository.csproj" />
 </Solution>
