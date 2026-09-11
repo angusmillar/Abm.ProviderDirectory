@@ -150,6 +150,30 @@ FHIR **batch** Bundle of **PUT** entries to `HttpClientType.TargetProviderDirect
 - Per resource failures are collected and the load continues; a failure of the commit itself is systemic and
   stops the load. Only `MaxRetainedFailures` failures are retained, though all are counted and logged.
 
+## API route conventions (Abm.PD.Core.Api)
+
+Applies to every entity endpoint file under `Abm.PD.Core.Api/Endpoints/` — see `ResourceEndpoints.cs`
+and `ProviderDataSourceEndpoints.cs` for worked examples:
+
+- **Path segments are PascalCase and singular** — the entity name, not the collection name:
+  `{base}/MyEntityName`, e.g. `/ProviderDataSource`. Never `/my-entity-names`, `/myEntityNames` or
+  `/MyEntityNames`.
+- **No `/search` route.** `GET {base}/MyEntityName` serves both "get all" and "search" from the one
+  route: no query string returns everything (`GetAllAsync`); any filter query parameter present
+  switches to a filtered lookup (`SearchAsync`) instead. A single handler (conventionally named
+  `GetAllOrSearch`) branches on whether any filter parameter was supplied — there is deliberately no
+  separate `{base}/MyEntityName/search` path.
+- **Search query parameter names are kebab-case and do not repeat the entity name** —
+  `{base}/ProviderDataSource?code=X&display-name=Y`, not `?providerDataSourceCode=X`. Drop the entity
+  prefix unless doing so would collide with another parameter's meaning on the same route (see the
+  `/Resource` exception below).
+- **`{base}/MyEntityName/{id}` addresses one record**, normally by the database primary key
+  (`{id:int}`, as in `ProviderDataSourceEndpoints`). Fall back to the entity's natural business key
+  only when the entity has no stable primary key exposed over the API. `ResourceEndpoints` is the one
+  exception today: `Resource` is a stub with no real business identity yet, so it addresses
+  `/Resource/{resourceId}` by `ResourceId` rather than the primary key — which is also why its search
+  query parameter is the bare `id` rather than the usual entity-prefixed form (no collision to avoid).
+
 ## Configuration and secrets
 
 - `appsettings.json` / `appsettings.Development.json` hold the `FhirNavigator` repository list. The
