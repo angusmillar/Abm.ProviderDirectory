@@ -1,0 +1,33 @@
+using Abm.PD.Core.Domain.Entities;
+using Abm.PD.Core.Domain.Enums;
+
+namespace Abm.PD.Core.Domain.Repositories;
+
+public interface IExportLoaderTaskRepository
+{
+    Task<IReadOnlyList<ExportLoaderTask>> GetAllAsync(CancellationToken cancellationToken);
+
+    Task<ExportLoaderTask?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken);
+
+    Task<ExportLoaderTask> AddAsync(
+        ExportLoaderTask exportLoaderTask,
+        CancellationToken cancellationToken);
+
+    Task<ExportLoaderTask?> UpdateAsync(
+        int id,
+        ExportLoaderTask exportLoaderTask,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ExportLoaderTask>> SearchAsync(
+        string? code,
+        TaskStateId? state,
+        DateTime? lastStartFrom,
+        DateTime? lastStartTo,
+        CancellationToken cancellationToken);
+}
