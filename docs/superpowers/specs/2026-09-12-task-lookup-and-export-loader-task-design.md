@@ -7,7 +7,7 @@ Status: Approved for planning
 
 Two related pieces of work in `Abm.PD.Core.Domain` / `Abm.PD.Core.Repository`:
 
-1. Map `TaskStatusId` and `TaskTypeId` as EF Core lookup entities, each with its own seeded table,
+1. Map `TaskStateId` and `TaskTypeId` as EF Core lookup entities, each with its own seeded table,
    following the pattern already used in the sibling `PyroServer` solution for `HttpVerb`.
 2. Wire the existing `TaskBase` / `ExportLoaderTask` / `ExportParameter` entities into the repository
    layer: decide how EF Core maps the `TaskBase` → `ExportLoaderTask` class hierarchy, add an
@@ -30,20 +30,36 @@ Two related pieces of work in `Abm.PD.Core.Domain` / `Abm.PD.Core.Repository`:
   lookup tables are seeded reference/descriptive data, not referentially enforced from consuming
   tables.
 
-## `TaskStatus` / `TaskType` lookup entities
+## Naming: `TaskStatusId` → `TaskStateId`
+
+The original brainstorm used `TaskStatus`/`TaskStatusId` throughout, mirroring `HttpVerb`/`HttpVerbId`.
+That collides: this repo's projects all have `ImplicitUsings` enabled, which brings in
+`global using System.Threading.Tasks;` everywhere — so a domain type named `TaskStatus` would clash
+with the BCL's `System.Threading.Tasks.TaskStatus` in every file that references both (the `DbContext`,
+its EF configuration, the repository, generated migrations). This is exactly the collision
+`TaskBase.cs` was already working around with a `using TaskStatus = System.Threading.Tasks.TaskStatus;`
+alias — reusing the name would reintroduce it everywhere else.
+
+Resolution: rename across the board, not just the lookup entity. `TaskStatusId` → `TaskStateId` (same
+five members: `Ready`, `InProgress`, `OnHold`, `Completed`, `Failed`), the lookup entity is `TaskState`
+(table `task_state`), and `TaskBase`'s `Status`/`StatusReason` properties become `State`/`StateReason`
+so the vocabulary stays consistent — no lingering `Status` sitting next to a type called `TaskStateId`.
+`TaskTypeId`/`TaskType` are unaffected — no BCL collision exists for that name.
+
+## `TaskState` / `TaskType` lookup entities
 
 New entities in `Abm.PD.Core.Domain/Entities/`:
 
 ```csharp
-public class TaskStatus
+public class TaskState
 {
-    private TaskStatus() { }
-    public TaskStatus(TaskStatusId taskStatusId, string name)
+    private TaskState() { }
+    public TaskState(TaskStateId taskStateId, string name)
     {
-        TaskStatusId = taskStatusId;
+        TaskStateId = taskStateId;
         Name = name;
     }
-    public TaskStatusId TaskStatusId { get; set; }
+    public TaskStateId TaskStateId { get; set; }
     public string Name { get; set; }
 }
 ```
@@ -51,32 +67,31 @@ public class TaskStatus
 (`TaskType` is the same shape, keyed on `TaskTypeId`.) Both are plain classes — not records — for the
 same reason `Resource`/`ProviderDataSource` are: EF Core change tracking wants mutable properties.
 
-EF configuration (`Abm.PD.Core.Repository/Configuration/TaskStatusConfiguration.cs`,
+EF configuration (`Abm.PD.Core.Repository/Configuration/TaskStateConfiguration.cs`,
 `TaskTypeConfiguration.cs`), mirroring `HttpVerbEntityConfig` exactly:
 
 ```csharp
-builder.ToTable("task_status");
-builder.HasKey(x => x.TaskStatusId);
-builder.Property(x => x.TaskStatusId).HasConversion<int>();
+builder.ToTable("task_state");
+builder.HasKey(x => x.TaskStateId);
+builder.Property(x => x.TaskStateId).HasConversion<int>();
 builder.HasData(
-    Enum.GetValues(typeof(TaskStatusId))
-        .Cast<TaskStatusId>()
-        .Select(e => new TaskStatus(e, e.ToString())));
+    Enum.GetValues(typeof(TaskStateId))
+        .Cast<TaskStateId>()
+        .Select(e => new TaskState(e, e.ToString())));
 ```
 
 `task_type` is seeded the same way even though nothing references it by FK yet (see TPC section
 below — `TypeId` is not a persisted column on `ExportLoaderTask`). It exists now as reference data
 for display/lookup purposes and so the next `TaskBase` subtype has it ready.
 
-## `TaskBase.Status` type fix
+## `TaskBase.Status` type fix (now `State`)
 
-`TaskBase.Status` is currently typed `System.Threading.Tasks.TaskStatus` (aliased at the top of
-`TaskBase.cs` to dodge the name clash with the new domain `TaskStatus` type) — the BCL's task
-execution-state enum (`Created`, `RanToCompletion`, `Faulted`, etc.), not the domain status
-(`Ready`/`InProgress`/`OnHold`/`Completed`/`Failed`). This was a mistake, not intentional design.
-Fixed as part of this work: `Status` becomes `TaskStatusId`, and the `using TaskStatus = ...` alias is
-removed. Because the domain entity `TaskStatus` (the lookup row type, see above) and the enum
-`TaskStatusId` are different types, there is no naming collision to alias around any more.
+`TaskBase.Status` was typed `System.Threading.Tasks.TaskStatus` (aliased at the top of `TaskBase.cs`)
+— the BCL's task execution-state enum (`Created`, `RanToCompletion`, `Faulted`, etc.), not a domain
+status. This was a mistake, not intentional design. Fixed as part of this work, and renamed per the
+section above: `Status` becomes `State`, typed `TaskStateId`, and the
+`using TaskStatus = ...` alias is removed entirely (no longer needed — nothing in this file is named
+`TaskStatus`/`TaskState` any more, so there is no collision to alias around).
 
 ## `TaskBase` / `ExportLoaderTask`: TPC mapping
 
@@ -89,8 +104,8 @@ modelBuilder.Entity<TaskBase>().UseTpcMappingStrategy();
 ```
 
 with `ExportLoaderTask` configured as a concrete leaf mapped to its own table, `export_loader_task`,
-carrying every `TaskBase` column (`id`, `code`, `display_name`, `description`, `status`,
-`status_reason`, `trigger_every`, `to_start_at_utc`, `to_end_at_utc`, `created_utc`, `updated_utc`,
+carrying every `TaskBase` column (`id`, `code`, `display_name`, `description`, `state`,
+`state_reason`, `trigger_every`, `to_start_at_utc`, `to_end_at_utc`, `created_utc`, `updated_utc`,
 `last_start`, `last_end`) plus its own (the owned `Parameter`, see below). There is no shared `task`
 table.
 
@@ -111,7 +126,7 @@ is **not mapped as a column**. Under TPC, the table itself already identifies th
 constant `type_id` value repeated on every row of `export_loader_task` would be pure redundancy.
 Excluded via `modelBuilder.Entity<ExportLoaderTask>().Ignore(x => x.TypeId)`.
 
-`Status` is mapped as a plain property (`builder.Property(x => x.Status)`), converted to `int` by EF
+`State` is mapped as a plain property (`builder.Property(x => x.State)`), converted to `int` by EF
 Core convention — no FK, no navigation property, per the PyroServer convention above.
 
 ## `ExportParameter`: owned dependent, not an independent entity
@@ -159,7 +174,7 @@ public interface IExportLoaderTaskRepository
 
     Task<IReadOnlyList<ExportLoaderTask>> SearchAsync(
         string? code,
-        TaskStatusId? status,
+        TaskStateId? state,
         DateTime? lastStartFrom,
         DateTime? lastStartTo,
         CancellationToken cancellationToken);
@@ -170,35 +185,42 @@ This departs from `IProviderDataSourceRepository`'s flat-scalar-parameter conven
 `UpdateAsync` take the whole `ExportLoaderTask` object (including its required `Parameter`), because
 there is no sane scalar-only signature for a required owned value with a list field. `UpdateAsync`
 loads the tracked entity by `id`, copies every writable field from the passed-in object (`Code`,
-`DisplayName`, `Description`, `Status`, `StatusReason`, `TriggerEvery`, `ToStartAtUtc`, `ToEndAtUtc`,
+`DisplayName`, `Description`, `State`, `StateReason`, `TriggerEvery`, `ToStartAtUtc`, `ToEndAtUtc`,
 `LastStart`, `LastEnd`, and the owned `Parameter`'s `Type`/`Since`/`TypeFilterList`), then
 `SaveChangesAsync` — one call updates parent and owned child together since they live in one table.
 
 `SearchAsync` filters: `code` (exact match, same convention as `ProviderDataSourceRepository`),
-`status` (exact match against `TaskStatusId`), and a `lastStartFrom`/`lastStartTo` range against
+`state` (exact match against `TaskStateId`), and a `lastStartFrom`/`lastStartTo` range against
 `LastStart` (each bound optional, applied independently when supplied) — the three filter vectors
-requested for finding a task by code, all tasks in a given status, or tasks that last ran in a window.
+requested for finding a task by code, all tasks in a given state, or tasks that last ran in a window.
 
 ## Migration
 
-One new migration adding `task_status` and `task_type` (both seeded via `HasData`) and
+One new migration adding `task_state` and `task_type` (both seeded via `HasData`) and
 `export_loader_task` (the TPC leaf table, with the owned `ExportParameter` columns flattened in,
 including the `text[]` `parameter_type_filter_list` column). No explicit `ToTable`/`HasColumnName`
 calls are needed beyond what's shown above — `UseSnakeCaseNamingConvention()` already produces
-`task_status`, `task_type`, `export_loader_task`, `display_name`, etc. by convention.
+`task_state`, `task_type`, `export_loader_task`, `display_name`, etc. by convention (this repo's
+existing files still spell out explicit `ToTable`/`HasKey` calls for clarity even where convention
+would already match, and this design follows that same explicit style).
 
 ## Integration test fixture: seeded lookup tables vs `Respawner`
 
 `Abm.PD.Core.Api.Tests/Fixtures/IntegrationTestFixture.cs` resets every table in the `public` schema
 between tests via an ignore-list, with the explicit stated reason (in its own comment) that "this
-schema seeds no data that needs to survive a reset". That stops being true once `task_status`/
+schema seeds no data that needs to survive a reset". That stops being true once `task_state`/
 `task_type` are seeded via migration `HasData` — without a change, `ResetDatabaseAsync()` would
 truncate that seed data after the first test that touches it, leaving later tests with an empty
 lookup table.
 
-Fix: add `task_status` and `task_type` to the existing `TablesToIgnore` list alongside
+Fix: add `task_state` and `task_type` to the existing `TablesToIgnore` list alongside
 `__ef_migrations_history`, with a short comment explaining why (seeded reference data, not test data).
 This keeps the ignore-list approach rather than switching to PyroServer's allow-list style.
+
+The fixture also needs to expose its underlying `IServiceProvider` (`WebApplicationFactory.Services`)
+so tests can resolve `ProviderDirectoryDbContext`/`IExportLoaderTaskRepository` directly in a DI scope
+— there is no HTTP API for these entities yet (see Out of scope), so `HttpClient` alone isn't enough
+to exercise them.
 
 ## Testing
 
@@ -206,7 +228,9 @@ This keeps the ignore-list approach rather than switching to PyroServer's allow-
 sits alongside) is exercised through the same Testcontainers-backed Postgres integration pattern
 `ProviderDataSourceCrudTests` already establishes, rather than through a mocked `DbContext` — these
 are exactly the kind of mapping decisions (TPC, owned types, native array columns) that only a real
-provider proves out.
+provider proves out. Since there's no HTTP API for these entities, tests resolve
+`ProviderDirectoryDbContext`/`IExportLoaderTaskRepository` from a DI scope off the fixture's
+`IServiceProvider` rather than going through `HttpClient`.
 
 ## Out of scope
 
@@ -214,5 +238,5 @@ provider proves out.
   repository layer only.
 - Any second `TaskBase` subtype — `TaskType` is seeded and ready, but no second concrete task type is
   being added now.
-- FK constraints from any consuming column back to `task_status`/`task_type` — deliberately not used,
+- FK constraints from any consuming column back to `task_state`/`task_type` — deliberately not used,
   per the PyroServer convention this follows.
