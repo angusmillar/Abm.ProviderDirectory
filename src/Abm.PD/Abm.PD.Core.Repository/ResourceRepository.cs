@@ -14,12 +14,12 @@ public class ResourceRepository(ProviderDirectoryDbContext dbContext) : IResourc
     }
 
     public async Task<Resource?> GetByIdAsync(
-        int id,
+        string resourceId,
         CancellationToken cancellationToken)
     {
         return await dbContext.Resources
             .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.ResourceId == resourceId, cancellationToken);
     }
 
     public async Task<Resource> AddAsync(
@@ -32,30 +32,30 @@ public class ResourceRepository(ProviderDirectoryDbContext dbContext) : IResourc
     }
 
     public async Task<Resource?> UpdateAsync(
-        int id,
-        string resourceType,
         string resourceId,
+        string resourceType,
+        string newResourceId,
         CancellationToken cancellationToken)
     {
         Resource? resource = await dbContext.Resources
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.ResourceId == resourceId, cancellationToken);
         if (resource is null)
         {
             return null;
         }
 
         resource.ResourceType = resourceType;
-        resource.ResourceId = resourceId;
+        resource.ResourceId = newResourceId;
         await dbContext.SaveChangesAsync(cancellationToken);
         return resource;
     }
 
     public async Task<bool> DeleteAsync(
-        int id,
+        string resourceId,
         CancellationToken cancellationToken)
     {
         Resource? resource = await dbContext.Resources
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.ResourceId == resourceId, cancellationToken);
         if (resource is null)
         {
             return false;

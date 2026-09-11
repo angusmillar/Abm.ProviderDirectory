@@ -8,38 +8,35 @@ public static class ResourceEndpoints
 {
     public static IEndpointRouteBuilder MapResourceEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/resources", GetAll);
-        endpoints.MapGet("/resources/search", Search);
-        endpoints.MapGet("/resources/{id:int}", GetById);
-        endpoints.MapPost("/resources", Create);
-        endpoints.MapPut("/resources/{id:int}", Update);
-        endpoints.MapDelete("/resources/{id:int}", Delete);
+        endpoints.MapGet("/Resource", GetAllOrSearch);
+        endpoints.MapGet("/Resource/{resourceId}", GetById);
+        endpoints.MapPost("/Resource", Create);
+        endpoints.MapPut("/Resource/{resourceId}", Update);
+        endpoints.MapDelete("/Resource/{resourceId}", Delete);
 
         return endpoints;
     }
 
-    private static async Task<IResult> GetAll(
+    private static async Task<IResult> GetAllOrSearch(
+        string? type,
+        string? id,
         IResourceRepository resourceRepository,
         CancellationToken cancellationToken)
     {
-        return Results.Ok(await resourceRepository.GetAllAsync(cancellationToken));
-    }
+        if (type is null && id is null)
+        {
+            return Results.Ok(await resourceRepository.GetAllAsync(cancellationToken));
+        }
 
-    private static async Task<IResult> Search(
-        string? resourceType,
-        string? resourceId,
-        IResourceRepository resourceRepository,
-        CancellationToken cancellationToken)
-    {
-        return Results.Ok(await resourceRepository.SearchAsync(resourceType, resourceId, cancellationToken));
+        return Results.Ok(await resourceRepository.SearchAsync(type, id, cancellationToken));
     }
 
     private static async Task<IResult> GetById(
-        int id,
+        string resourceId,
         IResourceRepository resourceRepository,
         CancellationToken cancellationToken)
     {
-        Resource? resource = await resourceRepository.GetByIdAsync(id, cancellationToken);
+        Resource? resource = await resourceRepository.GetByIdAsync(resourceId, cancellationToken);
         return resource is null
             ? Results.NotFound()
             : Results.Ok(resource);
@@ -56,19 +53,19 @@ public static class ResourceEndpoints
             ResourceId = request.ResourceId,
         };
         resource = await resourceRepository.AddAsync(resource, cancellationToken);
-        return Results.Created($"/resources/{resource.Id}", resource);
+        return Results.Created($"/Resource/{resource.ResourceId}", resource);
     }
 
     private static async Task<IResult> Update(
-        int id,
+        string resourceId,
         ResourceRequest request,
         IResourceRepository resourceRepository,
         CancellationToken cancellationToken)
     {
         Resource? resource = await resourceRepository.UpdateAsync(
-            id: id,
+            resourceId: resourceId,
             resourceType: request.ResourceType,
-            resourceId: request.ResourceId,
+            newResourceId: request.ResourceId,
             cancellationToken: cancellationToken);
         return resource is null
             ? Results.NotFound()
@@ -76,11 +73,11 @@ public static class ResourceEndpoints
     }
 
     private static async Task<IResult> Delete(
-        int id,
+        string resourceId,
         IResourceRepository resourceRepository,
         CancellationToken cancellationToken)
     {
-        bool deleted = await resourceRepository.DeleteAsync(id, cancellationToken);
+        bool deleted = await resourceRepository.DeleteAsync(resourceId, cancellationToken);
         return deleted
             ? Results.NoContent()
             : Results.NotFound();

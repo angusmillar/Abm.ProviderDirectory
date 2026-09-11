@@ -13,7 +13,7 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     {
         ProviderDataSourceRequest request = new(Guid.NewGuid().ToString(), "Provider Connect Australia");
 
-        HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         ProviderDataSource? created = await response.Content.ReadFromJsonAsync<ProviderDataSource>();
@@ -26,10 +26,10 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     public async Task GetById_ExistingProviderDataSource_ReturnsMatchingProviderDataSource()
     {
         ProviderDataSourceRequest request = new(Guid.NewGuid().ToString(), "Azure Pyro FHIR Server");
-        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
         ProviderDataSource created = (await createResponse.Content.ReadFromJsonAsync<ProviderDataSource>())!;
 
-        ProviderDataSource? fetched = await HttpClient.GetFromJsonAsync<ProviderDataSource>($"/provider-data-sources/{created.Id}");
+        ProviderDataSource? fetched = await HttpClient.GetFromJsonAsync<ProviderDataSource>($"/ProviderDataSource/{created.Id}");
 
         Assert.NotNull(fetched);
         Assert.Equal(created.Id, fetched!.Id);
@@ -40,10 +40,10 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     public async Task GetAll_AfterCreate_ContainsCreatedProviderDataSource()
     {
         ProviderDataSourceRequest request = new(Guid.NewGuid().ToString(), "Provider Connect Australia");
-        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
         ProviderDataSource created = (await createResponse.Content.ReadFromJsonAsync<ProviderDataSource>())!;
 
-        List<ProviderDataSource>? all = await HttpClient.GetFromJsonAsync<List<ProviderDataSource>>("/provider-data-sources");
+        List<ProviderDataSource>? all = await HttpClient.GetFromJsonAsync<List<ProviderDataSource>>("/ProviderDataSource");
 
         Assert.NotNull(all);
         Assert.Contains(all!, x => x.Id == created.Id);
@@ -54,10 +54,10 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     {
         string code = Guid.NewGuid().ToString();
         ProviderDataSourceRequest request = new(code, "Azure Pyro FHIR Server");
-        await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
 
         List<ProviderDataSource>? results = await HttpClient.GetFromJsonAsync<List<ProviderDataSource>>(
-            $"/provider-data-sources/search?code={code}&displayName=Azure Pyro FHIR Server");
+            $"/ProviderDataSource?code={code}&display-name=Azure Pyro FHIR Server");
 
         Assert.NotNull(results);
         Assert.Single(results!);
@@ -68,11 +68,11 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     public async Task Update_ExistingProviderDataSource_PersistsChanges()
     {
         ProviderDataSourceRequest request = new(Guid.NewGuid().ToString(), "Provider Connect Australia");
-        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
         ProviderDataSource created = (await createResponse.Content.ReadFromJsonAsync<ProviderDataSource>())!;
 
         ProviderDataSourceRequest updateRequest = new(Guid.NewGuid().ToString(), "Provider Connect Australia (Updated)");
-        HttpResponseMessage updateResponse = await HttpClient.PutAsJsonAsync($"/provider-data-sources/{created.Id}", updateRequest);
+        HttpResponseMessage updateResponse = await HttpClient.PutAsJsonAsync($"/ProviderDataSource/{created.Id}", updateRequest);
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         ProviderDataSource? updated = await updateResponse.Content.ReadFromJsonAsync<ProviderDataSource>();
@@ -80,7 +80,7 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
 
         // The PUT response reflects the tracked in-memory entity - fetch it back to prove the
         // change actually persisted to Postgres.
-        ProviderDataSource? fetched = await HttpClient.GetFromJsonAsync<ProviderDataSource>($"/provider-data-sources/{created.Id}");
+        ProviderDataSource? fetched = await HttpClient.GetFromJsonAsync<ProviderDataSource>($"/ProviderDataSource/{created.Id}");
         Assert.NotNull(fetched);
         Assert.Equal(updateRequest.DisplayName, fetched!.DisplayName);
     }
@@ -89,13 +89,13 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     public async Task Delete_ExistingProviderDataSource_Returns204ThenGetByIdReturns404()
     {
         ProviderDataSourceRequest request = new(Guid.NewGuid().ToString(), "Azure Pyro FHIR Server");
-        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/provider-data-sources", request);
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ProviderDataSource", request);
         ProviderDataSource created = (await createResponse.Content.ReadFromJsonAsync<ProviderDataSource>())!;
 
-        HttpResponseMessage deleteResponse = await HttpClient.DeleteAsync($"/provider-data-sources/{created.Id}");
+        HttpResponseMessage deleteResponse = await HttpClient.DeleteAsync($"/ProviderDataSource/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
-        HttpResponseMessage getResponse = await HttpClient.GetAsync($"/provider-data-sources/{created.Id}");
+        HttpResponseMessage getResponse = await HttpClient.GetAsync($"/ProviderDataSource/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 
@@ -104,7 +104,7 @@ public class ProviderDataSourceCrudTests(IntegrationTestFixture fixture) : Integ
     {
         ProviderDataSourceRequest updateRequest = new(Guid.NewGuid().ToString(), "Provider Connect Australia");
 
-        HttpResponseMessage response = await HttpClient.PutAsJsonAsync("/provider-data-sources/999999", updateRequest);
+        HttpResponseMessage response = await HttpClient.PutAsJsonAsync("/ProviderDataSource/999999", updateRequest);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

@@ -1,6 +1,7 @@
 using Abm.PD.Core.Api.Contracts;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Repositories;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Abm.PD.Core.Api.Endpoints;
 
@@ -8,29 +9,26 @@ public static class ProviderDataSourceEndpoints
 {
     public static IEndpointRouteBuilder MapProviderDataSourceEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/provider-data-sources", GetAll);
-        endpoints.MapGet("/provider-data-sources/search", Search);
-        endpoints.MapGet("/provider-data-sources/{id:int}", GetById);
-        endpoints.MapPost("/provider-data-sources", Create);
-        endpoints.MapPut("/provider-data-sources/{id:int}", Update);
-        endpoints.MapDelete("/provider-data-sources/{id:int}", Delete);
+        endpoints.MapGet("/ProviderDataSource", GetAllOrSearch);
+        endpoints.MapGet("/ProviderDataSource/{id:int}", GetById);
+        endpoints.MapPost("/ProviderDataSource", Create);
+        endpoints.MapPut("/ProviderDataSource/{id:int}", Update);
+        endpoints.MapDelete("/ProviderDataSource/{id:int}", Delete);
 
         return endpoints;
     }
 
-    private static async Task<IResult> GetAll(
-        IProviderDataSourceRepository providerDataSourceRepository,
-        CancellationToken cancellationToken)
-    {
-        return Results.Ok(await providerDataSourceRepository.GetAllAsync(cancellationToken));
-    }
-
-    private static async Task<IResult> Search(
+    private static async Task<IResult> GetAllOrSearch(
         string? code,
-        string? displayName,
+        [FromQuery(Name = "display-name")] string? displayName,
         IProviderDataSourceRepository providerDataSourceRepository,
         CancellationToken cancellationToken)
     {
+        if (code is null && displayName is null)
+        {
+            return Results.Ok(await providerDataSourceRepository.GetAllAsync(cancellationToken));
+        }
+
         return Results.Ok(await providerDataSourceRepository.SearchAsync(code, displayName, cancellationToken));
     }
 
@@ -56,7 +54,7 @@ public static class ProviderDataSourceEndpoints
             DisplayName = request.DisplayName,
         };
         providerDataSource = await providerDataSourceRepository.AddAsync(providerDataSource, cancellationToken);
-        return Results.Created($"/provider-data-sources/{providerDataSource.Id}", providerDataSource);
+        return Results.Created($"/ProviderDataSource/{providerDataSource.Id}", providerDataSource);
     }
 
     private static async Task<IResult> Update(

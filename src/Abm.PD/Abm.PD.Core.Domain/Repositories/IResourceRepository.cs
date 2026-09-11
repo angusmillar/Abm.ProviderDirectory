@@ -7,7 +7,7 @@ public interface IResourceRepository
     Task<IReadOnlyList<Resource>> GetAllAsync(CancellationToken cancellationToken);
 
     Task<Resource?> GetByIdAsync(
-        int id,
+        string resourceId,
         CancellationToken cancellationToken);
 
     Task<Resource> AddAsync(
@@ -15,13 +15,13 @@ public interface IResourceRepository
         CancellationToken cancellationToken);
 
     Task<Resource?> UpdateAsync(
-        int id,
-        string resourceType,
         string resourceId,
+        string resourceType,
+        string newResourceId,
         CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(
-        int id,
+        string resourceId,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Resource>> SearchAsync(
