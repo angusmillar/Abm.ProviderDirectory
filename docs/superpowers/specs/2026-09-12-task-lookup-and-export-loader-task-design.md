@@ -111,12 +111,14 @@ table.
 
 Consequences accepted as part of this decision:
 
-- No cross-type task table or query. If a future need arises to look up "a task, any type" generically
-  (e.g. an audit/log table keyed by task id across types), that will require either a shared ID
-  sequence across all `TaskBase`-derived tables or a different design at that point — not needed
-  today, so not built now.
-- Each concrete table gets ordinary per-table identity (`id` starting at 1, independently, per table).
-  Since nothing references tasks generically, this is a non-issue.
+- No cross-type task table or query built yet — nothing in this design needs to look up "a task, any
+  type" generically today.
+- All `TaskBase`-derived tables share one Postgres sequence (`TaskBaseSequence`, confirmed in the
+  `AddExportLoaderTask` migration) rather than each getting its own per-table identity — this is EF
+  Core's own default key generation for a TPC hierarchy on Postgres, not a deliberate design choice
+  here. `id` values end up unique across every concrete table, not independently numbered per table,
+  which incidentally already gives a future cross-type lookup the shared identity it would need, so
+  the caveat this bullet used to carry no longer applies.
 - Querying `TaskBase` directly (not needed by anything in this design) would compile to a
   `UNION ALL` across concrete tables once more than one exists — fine for an occasional admin query,
   not a pattern to build on.

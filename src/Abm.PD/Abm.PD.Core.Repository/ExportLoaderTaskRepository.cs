@@ -54,6 +54,9 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         existing.ToEndAtUtc = exportLoaderTask.ToEndAtUtc;
         existing.LastStart = exportLoaderTask.LastStart;
         existing.LastEnd = exportLoaderTask.LastEnd;
+        // CreatedUtc is deliberately never copied here - immutable after insert. UpdatedUtc always
+        // is, caller-owned like every other field above.
+        existing.UpdatedUtc = exportLoaderTask.UpdatedUtc;
         // Mutate the tracked owned instance in place rather than replacing the reference - EF Core's
         // change tracking for owned types is more reliable against property mutation than reassignment.
         existing.Parameter.Type = exportLoaderTask.Parameter.Type;

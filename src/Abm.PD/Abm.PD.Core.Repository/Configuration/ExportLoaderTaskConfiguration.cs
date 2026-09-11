@@ -17,6 +17,12 @@ internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<E
         // a constant column repeated on every row.
         builder.Ignore(x => x.TypeId);
 
+        builder.Property(x => x.Code)
+            .HasMaxLength(EntityConfigurationConstants.CodeMaxLength);
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique();
+
         builder.OwnsOne(x => x.Parameter, parameter =>
         {
             parameter.Property(x => x.Type).HasColumnName("parameter_type");

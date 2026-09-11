@@ -87,6 +87,10 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
 
         ExportLoaderTask update = NewTask(added.Code, TaskStateId.InProgress);
         update.Parameter.TypeFilterList = ["Patient", "Organization"];
+        // A fixed value clear of DateTime.UtcNow's sub-microsecond precision, so it round-trips
+        // through the timestamptz column (microsecond precision) without truncation flakiness.
+        DateTime newUpdatedUtc = new(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+        update.UpdatedUtc = newUpdatedUtc;
         ExportLoaderTask? updated = await repository.UpdateAsync(added.Id, update, CancellationToken.None);
 
         Assert.NotNull(updated);
@@ -96,6 +100,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         Assert.NotNull(fetched);
         Assert.Equal(TaskStateId.InProgress, fetched!.State);
         Assert.Equal(new[] { "Patient", "Organization" }, fetched.Parameter.TypeFilterList);
+        Assert.Equal(newUpdatedUtc, fetched.UpdatedUtc);
     }
 
     [Fact]
@@ -122,6 +127,40 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
 
         Assert.True(deleted);
         Assert.Null(await repository.GetByIdAsync(added.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NonExistentTask_ReturnsFalse()
+    {
+        using IServiceScope scope = fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository =
+            scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+
+        bool deleted = await repository.DeleteAsync(999999, CancellationToken.None);
+
+        Assert.False(deleted);
+    }
+
+    [Fact]
+    public async Task SearchAsync_WithNoFilters_ReturnsAllTasks()
+    {
+        using IServiceScope scope = fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository =
+            scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask task1 = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+        ExportLoaderTask task2 = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+        ExportLoaderTask task3 = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> results = await repository.SearchAsync(
+            code: null,
+            state: null,
+            lastStartFrom: null,
+            lastStartTo: null,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Contains(results, x => x.Id == task1.Id);
+        Assert.Contains(results, x => x.Id == task2.Id);
+        Assert.Contains(results, x => x.Id == task3.Id);
     }
 
     [Fact]

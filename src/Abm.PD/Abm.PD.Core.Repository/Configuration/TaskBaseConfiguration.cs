@@ -10,6 +10,8 @@ internal sealed class TaskBaseConfiguration : IEntityTypeConfiguration<TaskBase>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        builder.HasKey(x => x.Id);
+
         // Table-Per-Concrete-Type: TaskBase has no table of its own. Each concrete task type
         // (ExportLoaderTask today) gets its own table carrying every TaskBase column plus its own -
         // see the design spec's TPC section for why (no cross-task-type querying is needed yet).

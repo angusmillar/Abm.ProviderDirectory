@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Abm.PD.Core.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    partial class ProviderDirectoryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260911174830_AddExportLoaderTaskCodeConstraint")]
+    partial class AddExportLoaderTaskCodeConstraint
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -255,7 +258,7 @@ namespace Abm.PD.Core.Repository.Migrations
                             b1.HasKey("ExportLoaderTaskId")
                                 .HasName("pk_export_loader_task");
 
-                            b1.ToTable("export_loader_task", (string)null);
+                            b1.ToTable("export_loader_task");
 
                             b1.WithOwner()
                                 .HasForeignKey("ExportLoaderTaskId")

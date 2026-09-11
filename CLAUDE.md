@@ -150,6 +150,25 @@ FHIR **batch** Bundle of **PUT** entries to `HttpClientType.TargetProviderDirect
 - Per resource failures are collected and the load continues; a failure of the commit itself is systemic and
   stops the load. Only `MaxRetainedFailures` failures are retained, though all are counted and logged.
 
+## Repository and schema conventions (Abm.PD.Core.Repository)
+
+- **Generate EF Core migrations against `Abm.PD.Core.Repository`, not `Abm.PD.Core.Api`.** The Api
+  project doesn't reference `Microsoft.EntityFrameworkCore.Design`; Repository does and carries its
+  own `DesignTimeDbContextFactory` built for standalone `dotnet ef` usage:
+  `dotnet ef migrations add <Name> --project Abm.PD.Core.Repository --startup-project Abm.PD.Core.Repository`.
+- **Lookup/enum tables** (`task_state`, `task_type`) are seeded reference data via EF Core `HasData`,
+  deliberately with **no foreign-key constraint** from any consuming column — a convention carried
+  over from the sibling PyroServer solution's `HttpVerb`. Any new seeded lookup table must also be
+  added to `IntegrationTestFixture`'s `Respawner.TablesToIgnore` list, or the per-test database reset
+  wipes the seed data.
+- **`TpcOwnedEntityKeyNameFixupConvention`** (`Abm.PD.Core.Repository/Configuration/`) works around a
+  real `EFCore.NamingConventions` limitation where a Table-Per-Concrete-Type (TPC) mapped entity and
+  a table-split owned entity sharing its table disagree on primary-key constraint naming. It only
+  supports exactly one concrete table in the hierarchy having a table-split owned entity today —
+  adding a second `TaskBase` subtype will need its PK-naming strategy revisited; it throws an
+  explicit `NotSupportedException` rather than silently producing a broken migration when that case
+  is reached.
+
 ## API route conventions (Abm.PD.Core.Api)
 
 Applies to every entity endpoint file under `Abm.PD.Core.Api/Endpoints/` — see `ResourceEndpoints.cs`
