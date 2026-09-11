@@ -2,6 +2,8 @@ using Abm.PD.Core.Api.Endpoints;
 using Abm.PD.Core.Api.Settings;
 using Abm.PD.Core.Repository;
 using Abm.PD.Core.Repository.DependencyInjection;
+using Abm.PD.BulkExport.DependencyInjection;
+using Abm.PD.Core.Application.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -22,6 +24,8 @@ string connectionString = builder.Configuration.GetConnectionString("ProviderDir
         "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
 
 builder.Services.AddCoreRepositoryServices(builder.Configuration);
+builder.Services.AddFhirBulkExportServices(builder.Configuration);
+builder.Services.AddCoreProviderDirectoryServices(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString, name: "postgres", tags: ["ready"]);
@@ -38,6 +42,7 @@ if (databaseSettings.RunMigrationsOnStartup)
 }
 
 app.MapResourceEndpoints();
+app.MapProviderDataSourceEndpoints();
 app.MapHealthCheckEndpoints();
 
 app.Run();

@@ -10,20 +10,28 @@ public static class ServiceCollectionExtension
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        string? connectionString = configuration.GetConnectionString("ProviderDirectoryDb");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
-        }
-
+        // Resolved inside the AddDbContext delegate, not eagerly here: this delegate runs when the
+        // DbContext is first built from the service provider, which is after the host has finished
+        // building - so it picks up configuration overrides a WebApplicationFactory applies during
+        // Build() (see Abm.PD.Core.Api.Tests's CoreApiWebApplicationFactory), where an eager read
+        // here would have already captured the pre-override connection string.
         services.AddDbContext<ProviderDirectoryDbContext>(options =>
+        {
+            string? connectionString = configuration.GetConnectionString("ProviderDirectoryDb");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
+            }
+
             NpgsqlDbContextOptionsSupport.ConfigureProviderDirectoryDbContext(
                 optionsBuilder: options,
                 connectionString: connectionString,
-                enableRetryOnFailure: true));
+                enableRetryOnFailure: true);
+        });
 
         services.AddScoped<IResourceRepository, ResourceRepository>();
+        services.AddScoped<IProviderDataSourceRepository, ProviderDataSourceRepository>();
 
         return services;
     }

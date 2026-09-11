@@ -23,7 +23,7 @@ public class ServiceCollectionExtensionTests
     {
         Dictionary<string, string?> values = new()
         {
-            ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "10:00",
+            ["Time:ServiceDefaultTimeZone"] = "10:00",
             ["FhirNavigator:UserAgentName"] = "Abm.PD.BulkExport.Tests",
             ["FhirNavigator:UserAgentVersion"] = "1.0",
             ["FhirNavigator:FhirRepositories:0:Code"] = HttpClientType.ProviderConnectAustralia,
@@ -50,7 +50,7 @@ public class ServiceCollectionExtensionTests
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddProviderDirectoryServices(configuration ?? Configuration());
+        services.AddFhirBulkExportServices(configuration ?? Configuration());
         return services.BuildServiceProvider(validateScopes: true);
     }
 
@@ -120,7 +120,7 @@ public class ServiceCollectionExtensionTests
     {
         //The annotated range is 00:00 to 23:59, so a negative offset binds but must not pass validation.
         using ServiceProvider serviceProvider = BuildProvider(
-            Configuration(new Dictionary<string, string?> { ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "-01:00" }));
+            Configuration(new Dictionary<string, string?> { ["Time:ServiceDefaultTimeZone"] = "-01:00" }));
 
         OptionsValidationException exception = Assert.Throws<OptionsValidationException>(
             () => serviceProvider.GetRequiredService<IOptions<TimeSettings>>().Value);
@@ -132,7 +132,7 @@ public class ServiceCollectionExtensionTests
     public void AddProviderDirectoryServices_ATimeZoneThatIsNotATimeSpanFailsToBind()
     {
         using ServiceProvider serviceProvider = BuildProvider(
-            Configuration(new Dictionary<string, string?> { ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "25:00" }));
+            Configuration(new Dictionary<string, string?> { ["Time:ServiceDefaultTimeZone"] = "25:00" }));
 
         Assert.Throws<InvalidOperationException>(
             () => serviceProvider.GetRequiredService<IOptions<TimeSettings>>().Value);
@@ -179,7 +179,7 @@ public class ServiceCollectionExtensionTests
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ServiceDefaultTimeZone:TimeZoneTimeSpan"] = "10:00"
+                ["Time:ServiceDefaultTimeZone"] = "10:00"
             })
             .Build();
 
@@ -187,6 +187,6 @@ public class ServiceCollectionExtensionTests
         services.AddLogging();
 
         Assert.Throws<InvalidOperationException>(
-            () => services.AddProviderDirectoryServices(configuration));
+            () => services.AddFhirBulkExportServices(configuration));
     }
 }

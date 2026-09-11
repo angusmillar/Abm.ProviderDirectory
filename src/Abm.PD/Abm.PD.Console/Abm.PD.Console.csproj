@@ -39,6 +39,7 @@
     
     <ItemGroup>
       <ProjectReference Include="..\Abm.PD.BulkExport\Abm.PD.BulkExport.csproj" />
+      <ProjectReference Include="..\Abm.PD.Core.Application\Abm.PD.Core.Application.csproj" />
     </ItemGroup>
 
 </Project>

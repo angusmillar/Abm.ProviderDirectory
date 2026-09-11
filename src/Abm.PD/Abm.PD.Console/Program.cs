@@ -23,7 +23,7 @@ builder.Services.AddOptions<ConsoleApplicationSettings>()
 
 // Add services/tools as required.
 builder.Services.AddScoped<ConsoleApplication>();
-builder.Services.AddProviderDirectoryServices(builder.Configuration);
+builder.Services.AddFhirBulkExportServices(builder.Configuration);
 
 //Build the host and resolve Application via a scope
 using var host = builder.Build();

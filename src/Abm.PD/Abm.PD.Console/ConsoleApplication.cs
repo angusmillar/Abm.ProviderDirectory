@@ -4,6 +4,7 @@ using Abm.PD.Console.Settings;
 using Abm.PD.BulkExport.Loader;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
+using Abm.PD.Core.Application;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

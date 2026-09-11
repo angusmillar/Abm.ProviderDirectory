@@ -1,6 +1,6 @@
 ﻿using Hl7.Fhir.Model;
 
-namespace Abm.PD.Console;
+namespace Abm.PD.Core.Application;
 
 public static class FhirExportQuery
 {

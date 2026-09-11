@@ -13,7 +13,7 @@ namespace Abm.PD.BulkExport.DependencyInjection;
 
 public static class ServiceCollectionExtension
 {
-    public static IServiceCollection AddProviderDirectoryServices(
+    public static IServiceCollection AddFhirBulkExportServices(
         this IServiceCollection services, 
         IConfiguration configuration)
     {
