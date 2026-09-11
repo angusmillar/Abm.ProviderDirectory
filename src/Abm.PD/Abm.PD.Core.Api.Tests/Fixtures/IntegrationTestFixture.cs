@@ -16,6 +16,8 @@ public class IntegrationTestFixture : IAsyncLifetime
 
     public HttpClient? HttpClient { get; private set; }
 
+    public IServiceProvider Services => _factory!.Services;
+
     public async Task InitializeAsync()
     {
         // 1. Start the Postgres container.
@@ -37,8 +39,8 @@ public class IntegrationTestFixture : IAsyncLifetime
 
         // 3. Checkpoint the migrated, empty database. An ignore-list rather than an allow-list, so
         //    new tables are covered by the reset as the schema grows without needing to be added
-        //    here - this schema seeds no data that needs to survive a reset, unlike the sibling
-        //    PyroServer solution's justification for an allow-list.
+        //    here - only EF's migration bookkeeping and the seeded lookup tables below are carved
+        //    out, unlike the sibling PyroServer solution's justification for an allow-list.
         await using (NpgsqlConnection checkpointConnection = new(_connectionString))
         {
             await checkpointConnection.OpenAsync();
@@ -46,9 +48,14 @@ public class IntegrationTestFixture : IAsyncLifetime
             {
                 DbAdapter = DbAdapter.Postgres,
                 SchemasToInclude = ["public"],
-                // Everything in "public" is test data except EF's own migration bookkeeping, so
-                // ignore that one rather than allow-listing tables the schema has yet to grow.
-                TablesToIgnore = [new Respawn.Graph.Table("__ef_migrations_history")],
+                TablesToIgnore =
+                [
+                    new Respawn.Graph.Table("__ef_migrations_history"),
+                    // Seeded reference/lookup data (see TaskStateConfiguration/TaskTypeConfiguration's
+                    // HasData) - not test data, must survive a reset like the migrations history table.
+                    new Respawn.Graph.Table("task_state"),
+                    new Respawn.Graph.Table("task_type"),
+                ],
             });
         }
 

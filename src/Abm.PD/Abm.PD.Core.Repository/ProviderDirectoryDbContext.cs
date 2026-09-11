@@ -8,6 +8,8 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
 {
     public DbSet<Resource> Resources => Set<Resource>();
     public DbSet<ProviderDataSource> ProviderDataSource => Set<ProviderDataSource>();
+    public DbSet<TaskState> TaskStates => Set<TaskState>();
+    public DbSet<TaskType> TaskTypes => Set<TaskType>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

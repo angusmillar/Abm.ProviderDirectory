@@ -1,6 +1,6 @@
-﻿namespace Abm.PD.Core.Domain.Enums;
+namespace Abm.PD.Core.Domain.Enums;
 
-public enum TaskStatusId
+public enum TaskStateId
 {
     Ready = 1,
     InProgress = 2,

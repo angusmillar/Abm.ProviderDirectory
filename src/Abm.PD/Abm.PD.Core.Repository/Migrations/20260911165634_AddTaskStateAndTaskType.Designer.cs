@@ -2,6 +2,7 @@
 using Abm.PD.Core.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    partial class ProviderDirectoryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260911165634_AddTaskStateAndTaskType")]
+    partial class AddTaskStateAndTaskType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
