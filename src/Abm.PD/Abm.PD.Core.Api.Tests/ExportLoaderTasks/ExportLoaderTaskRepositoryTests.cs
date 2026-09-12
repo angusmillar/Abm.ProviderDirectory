@@ -2,6 +2,8 @@ using Abm.PD.Core.Api.Tests.Fixtures;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
+using Abm.PD.Core.Repository;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
@@ -16,7 +18,6 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
         {
-            TypeId = TaskTypeId.BulkImport,
             Code = code,
             DisplayName = $"Task {code}",
             Description = null,
@@ -128,6 +129,15 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
 
         Assert.True(deleted);
         Assert.Null(await repository.GetByIdAsync(added.Id, CancellationToken.None));
+
+        // The owned Parameter now lives in its own table rather than table-split into "task" - assert
+        // the FK cascade actually removed its row too, not just that the parent is unreachable.
+        ProviderDirectoryDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
+        long remainingParameterRows = await dbContext.Database
+            .SqlQuery<long>($"SELECT count(*) AS \"Value\" FROM export_loader_task_parameter WHERE export_loader_task_id = {added.Id}")
+            .SingleAsync();
+        Assert.Equal(0, remainingParameterRows);
     }
 
     [Fact]

@@ -107,6 +107,12 @@ builder.HasDiscriminator(x => x.TypeId)
     .HasValue<ExportLoaderTask>(TaskTypeId.BulkImport);
 ```
 
+The `ix_task_code` uniqueness constraint is now hierarchy-wide — it spans every `TaskBase` subtype
+sharing the `task` table, not just `ExportLoaderTask` rows, since under TPH there is only the one
+table and one index to enforce it against. This is the intended semantics of moving `Code` onto
+`TaskBase`, just previously unstated: it was per-concrete-type under TPC (each subtype had its own
+table and its own uniqueness constraint) and is now shared across the whole hierarchy.
+
 `ExportLoaderTaskConfiguration` shrinks to just the owned `Parameter` mapping, now into its own table
 rather than table-split into `task`:
 
@@ -114,11 +120,15 @@ rather than table-split into `task`:
 builder.OwnsOne(x => x.Parameter, parameter =>
 {
     parameter.ToTable("export_loader_task_parameter");
+    parameter.WithOwner().HasConstraintName("fk_export_loader_task_parameter_task");
     parameter.Property(x => x.Type).HasColumnName("type");
     parameter.Property(x => x.Since).HasColumnName("since");
     parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
 });
 ```
+
+The explicit `HasConstraintName` avoids EF's auto-generated FK name truncating at Postgres's
+63-character identifier limit.
 
 The `parameter_` column-name prefix from the TPC design is dropped — it existed only to disambiguate
 owned columns folded into the same physical row as `task`'s own columns; in its own table that

@@ -7,9 +7,19 @@ namespace Abm.PD.Core.Domain.Entities;
 /// </summary>
 public abstract class TaskBase
 {
+    protected TaskBase(TaskTypeId typeId)
+    {
+        TypeId = typeId;
+    }
+
     public int Id { get; set; }
 
-    public required TaskTypeId TypeId { get; set; }
+    // Set only by each subtype's constructor - a real, ValueGenerated.Never CLR property is not
+    // otherwise protected by EF from being handed a mismatched value at construction time, which
+    // would silently write a row that is unreachable through its own subtype's DbSet while still
+    // occupying its slot in the unique Code index. EF Core materialises via reflection and can still
+    // set this through the private setter.
+    public TaskTypeId TypeId { get; private set; }
 
     public required string Code { get; set; }
 

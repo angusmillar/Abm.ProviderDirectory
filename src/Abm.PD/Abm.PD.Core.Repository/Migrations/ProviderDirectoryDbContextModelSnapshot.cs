@@ -262,7 +262,7 @@ namespace Abm.PD.Core.Repository.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ExportLoaderTaskId")
-                                .HasConstraintName("fk_export_loader_task_parameter_export_loader_tasks_export_loa");
+                                .HasConstraintName("fk_export_loader_task_parameter_task");
                         });
 
                     b.Navigation("Parameter")

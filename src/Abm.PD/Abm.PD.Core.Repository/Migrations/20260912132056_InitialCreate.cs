@@ -105,7 +105,7 @@ namespace Abm.PD.Core.Repository.Migrations
                 {
                     table.PrimaryKey("pk_export_loader_task_parameter", x => x.export_loader_task_id);
                     table.ForeignKey(
-                        name: "fk_export_loader_task_parameter_export_loader_tasks_export_loa",
+                        name: "fk_export_loader_task_parameter_task",
                         column: x => x.export_loader_task_id,
                         principalTable: "task",
                         principalColumn: "id",

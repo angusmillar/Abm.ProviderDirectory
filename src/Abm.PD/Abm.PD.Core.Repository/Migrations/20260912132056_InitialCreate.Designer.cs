@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260912130338_InitialCreate")]
+    [Migration("20260912132056_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -265,7 +265,7 @@ namespace Abm.PD.Core.Repository.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ExportLoaderTaskId")
-                                .HasConstraintName("fk_export_loader_task_parameter_export_loader_tasks_export_loa");
+                                .HasConstraintName("fk_export_loader_task_parameter_task");
                         });
 
                     b.Navigation("Parameter")

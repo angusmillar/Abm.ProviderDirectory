@@ -161,13 +161,9 @@ FHIR **batch** Bundle of **PUT** entries to `HttpClientType.TargetProviderDirect
   over from the sibling PyroServer solution's `HttpVerb`. Any new seeded lookup table must also be
   added to `IntegrationTestFixture`'s `Respawner.TablesToIgnore` list, or the per-test database reset
   wipes the seed data.
-- **`TpcOwnedEntityKeyNameFixupConvention`** (`Abm.PD.Core.Repository/Configuration/`) works around a
-  real `EFCore.NamingConventions` limitation where a Table-Per-Concrete-Type (TPC) mapped entity and
-  a table-split owned entity sharing its table disagree on primary-key constraint naming. It only
-  supports exactly one concrete table in the hierarchy having a table-split owned entity today —
-  adding a second `TaskBase` subtype will need its PK-naming strategy revisited; it throws an
-  explicit `NotSupportedException` rather than silently producing a broken migration when that case
-  is reached.
+- **`TaskBase`/`ExportLoaderTask` are Table-Per-Hierarchy (TPH) mapped** — every `TaskBase` subtype
+  shares the one `task` table, discriminated by the stored `TypeId` column. The owned
+  `ExportParameter` is not table-split; it lives in its own `export_loader_task_parameter` table.
 
 ## API route conventions (Abm.PD.Core.Api)
 

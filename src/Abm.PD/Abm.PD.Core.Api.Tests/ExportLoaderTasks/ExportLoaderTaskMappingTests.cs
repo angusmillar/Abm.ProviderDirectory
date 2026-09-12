@@ -15,7 +15,6 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
         DateTime nowUtc = DateTime.UtcNow;
         ExportLoaderTask task = new()
         {
-            TypeId = TaskTypeId.BulkImport,
             Code = "bulk-import-au",
             DisplayName = "Bulk Import AU",
             Description = "Nightly bulk import",
