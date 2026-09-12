@@ -12,6 +12,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Abm.PD.BulkExport\Abm.PD.BulkExport.csproj" />
+      <ProjectReference Include="..\Abm.PD.Core.Domain\Abm.PD.Core.Domain.csproj" />
     </ItemGroup>
 
 </Project>
