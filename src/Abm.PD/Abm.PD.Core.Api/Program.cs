@@ -5,6 +5,7 @@ using Abm.PD.Core.Repository.DependencyInjection;
 using Abm.PD.BulkExport.DependencyInjection;
 using Abm.PD.Core.Application.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -19,16 +20,31 @@ builder.Services.AddOptions<DatabaseSettings>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-string connectionString = builder.Configuration.GetConnectionString("ProviderDirectoryDb")
-    ?? throw new InvalidOperationException(
-        "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
-
 builder.Services.AddCoreRepositoryServices(builder.Configuration);
 builder.Services.AddFhirBulkExportServices(builder.Configuration);
 builder.Services.AddCoreProviderDirectoryServices(builder.Configuration);
 
 builder.Services.AddHealthChecks()
-    .AddNpgSql(connectionString, name: "postgres", tags: ["ready"]);
+    // Resolved inside this factory, not eagerly above: the factory runs when the health check
+    // executes, which is after the host has finished building - so it picks up configuration
+    // overrides a WebApplicationFactory applies during Build() (see Abm.PD.Core.Api.Tests's
+    // CoreApiWebApplicationFactory), where an eager read here would have already captured the
+    // pre-override connection string. Same reasoning as AddCoreRepositoryServices's AddDbContext call.
+    .AddNpgSql(
+        connectionStringFactory: sp =>
+        {
+            IConfiguration configuration = sp.GetRequiredService<IConfiguration>();
+            string? connectionString = configuration.GetConnectionString("ProviderDirectoryDb");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "Missing required connection string 'ConnectionStrings:ProviderDirectoryDb'.");
+            }
+
+            return connectionString;
+        },
+        name: "postgres",
+        tags: ["ready"]);
 
 var app = builder.Build();
 
