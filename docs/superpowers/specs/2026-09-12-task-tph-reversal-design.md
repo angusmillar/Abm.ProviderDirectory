@@ -40,9 +40,14 @@ regression test class are deleted outright, not reworked.
 ```csharp
 public abstract class TaskBase
 {
+    protected TaskBase(TaskTypeId typeId)
+    {
+        TypeId = typeId;
+    }
+
     public int Id { get; set; }
 
-    public required TaskTypeId TypeId { get; set; }
+    public TaskTypeId TypeId { get; private set; }
 
     public required string Code { get; set; }
 
@@ -73,16 +78,29 @@ public abstract class TaskBase
 `TypeId` was `public abstract TaskTypeId TypeId { get; }`, overridden in `ExportLoaderTask` as
 `=> TaskTypeId.BulkImport` and explicitly `Ignore()`d in `ExportLoaderTaskConfiguration` because a TPC
 leaf table already identifies its own concrete type. Under TPH every subtype shares one table, so the
-discriminator has to be a real, settable, stored column — hence the switch from a computed
-per-subtype override to a plain `required` property, set explicitly by whoever constructs the entity
-(the same way `Code`/`DisplayName` already are). `ExportLoaderTask` no longer overrides `TypeId`,
-`Code`, `DisplayName`, or `Description` — they are inherited as-is.
+discriminator has to be a real, stored column. It is deliberately **not** a publicly settable
+`required` property, though: EF Core does not manage a discriminator mapped to a real CLR property the
+way it manages a shadow one — a `ValueGenerated.Never` property keeps whatever value the caller last
+set, so a public setter would let a mismatched `TypeId` be written, silently producing a row that no
+`ExportLoaderTaskRepository` query can ever find again (every query implicitly filters on the correct
+`type_id`) while still occupying its slot in the unique `Code` index. Instead, `TaskBase` takes
+`typeId` as a constructor parameter (`protected TaskBase(TaskTypeId typeId)`) and exposes it as
+`TaskTypeId TypeId { get; private set; }` — EF Core reads/writes private setters via reflection during
+materialisation without issue, so the column mapping and discriminator configuration are unaffected;
+only external code loses the ability to set it. `ExportLoaderTask` no longer overrides `TypeId`,
+`Code`, `DisplayName`, or `Description` — `Code`/`DisplayName`/`Description` are inherited as-is, and
+`TypeId` is fixed by `ExportLoaderTask`'s own constructor.
 
-`ExportLoaderTask` shrinks to just its own data:
+`ExportLoaderTask` shrinks to just its own data plus the constructor that fixes its `TypeId`:
 
 ```csharp
 public class ExportLoaderTask : TaskBase
 {
+    public ExportLoaderTask()
+        : base(TaskTypeId.BulkImport)
+    {
+    }
+
     public required ExportParameter Parameter { get; set; }
 }
 ```
@@ -158,8 +176,9 @@ The new `InitialCreate` covers every entity that exists today: `resource`, `prov
 ## Testing
 
 `ExportLoaderTaskMappingTests` and `ExportLoaderTaskRepositoryTests` construct `ExportLoaderTask`
-instances via object initializers; since `TypeId` is now `required`, every call site must set
-`TypeId = TaskTypeId.BulkImport` explicitly. The existing round-trip assertion
+instances via object initializers; since `TypeId` is fixed by `ExportLoaderTask`'s own constructor,
+no call site sets it — the object initializers are unchanged from before this reversal apart from
+everything else that moved. The existing round-trip assertion
 (`Assert.Equal(TaskTypeId.BulkImport, reloaded.TypeId)`) is unchanged in shape but now actually proves
 persistence through a real stored column and a fresh `AsNoTracking()` reload, rather than a
 guaranteed-correct-by-construction computed override.
