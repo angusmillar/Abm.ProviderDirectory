@@ -10,24 +10,12 @@ internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<E
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.ToTable("export_loader_task");
-
-        // TypeId is a compile-time-constant computed property (see ExportLoaderTask.TypeId) - under
-        // TPC the table itself already identifies the concrete type, so persisting it would just be
-        // a constant column repeated on every row.
-        builder.Ignore(x => x.TypeId);
-
-        builder.Property(x => x.Code)
-            .HasMaxLength(EntityConfigurationConstants.CodeMaxLength);
-
-        builder.HasIndex(x => x.Code)
-            .IsUnique();
-
         builder.OwnsOne(x => x.Parameter, parameter =>
         {
-            parameter.Property(x => x.Type).HasColumnName("parameter_type");
-            parameter.Property(x => x.Since).HasColumnName("parameter_since");
-            parameter.Property(x => x.TypeFilterList).HasColumnName("parameter_type_filter_list");
+            parameter.ToTable("export_loader_task_parameter");
+            parameter.Property(x => x.Type).HasColumnName("type");
+            parameter.Property(x => x.Since).HasColumnName("since");
+            parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
         });
     }
 }

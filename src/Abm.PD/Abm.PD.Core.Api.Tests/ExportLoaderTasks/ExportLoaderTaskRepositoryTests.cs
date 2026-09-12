@@ -16,6 +16,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
         {
+            TypeId = TaskTypeId.BulkImport,
             Code = code,
             DisplayName = $"Task {code}",
             Description = null,

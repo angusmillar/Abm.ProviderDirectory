@@ -23,8 +23,6 @@ namespace Abm.PD.Core.Repository.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.HasSequence("TaskBaseSequence");
-
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ProviderDataSource", b =>
                 {
                     b.Property<int>("Id")
@@ -85,10 +83,9 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("nextval('\"TaskBaseSequence\"')");
+                        .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseSequence(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -137,16 +134,26 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnType("interval")
                         .HasColumnName("trigger_every");
 
+                    b.Property<int>("TypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("type_id");
+
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_utc");
 
                     b.HasKey("Id")
-                        .HasName("pk_export_loader_task");
+                        .HasName("pk_task");
 
-                    b.ToTable((string)null);
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_task_code");
 
-                    b.UseTpcMappingStrategy();
+                    b.ToTable("task", (string)null);
+
+                    b.HasDiscriminator<int>("TypeId");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.TaskState", b =>
@@ -223,11 +230,7 @@ namespace Abm.PD.Core.Repository.Migrations
                 {
                     b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_export_loader_task_code");
-
-                    b.ToTable("export_loader_task", (string)null);
+                    b.HasDiscriminator().HasValue(1);
                 });
 
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportLoaderTask", b =>
@@ -236,30 +239,30 @@ namespace Abm.PD.Core.Repository.Migrations
                         {
                             b1.Property<int>("ExportLoaderTaskId")
                                 .HasColumnType("integer")
-                                .HasColumnName("id");
+                                .HasColumnName("export_loader_task_id");
 
                             b1.Property<DateTimeOffset?>("Since")
                                 .HasColumnType("timestamp with time zone")
-                                .HasColumnName("parameter_since");
+                                .HasColumnName("since");
 
                             b1.Property<string>("Type")
                                 .IsRequired()
                                 .HasColumnType("text")
-                                .HasColumnName("parameter_type");
+                                .HasColumnName("type");
 
                             b1.PrimitiveCollection<List<string>>("TypeFilterList")
                                 .IsRequired()
                                 .HasColumnType("text[]")
-                                .HasColumnName("parameter_type_filter_list");
+                                .HasColumnName("type_filter_list");
 
                             b1.HasKey("ExportLoaderTaskId")
-                                .HasName("pk_export_loader_task");
+                                .HasName("pk_export_loader_task_parameter");
 
-                            b1.ToTable("export_loader_task", (string)null);
+                            b1.ToTable("export_loader_task_parameter", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("ExportLoaderTaskId")
-                                .HasConstraintName("fk_export_loader_task_export_loader_task_id");
+                                .HasConstraintName("fk_export_loader_task_parameter_export_loader_tasks_export_loa");
                         });
 
                     b.Navigation("Parameter")

@@ -9,13 +9,13 @@ public abstract class TaskBase
 {
     public int Id { get; set; }
 
-    public abstract TaskTypeId TypeId { get; }
+    public required TaskTypeId TypeId { get; set; }
 
-    public abstract required string Code { get; set; }
+    public required string Code { get; set; }
 
-    public abstract required string DisplayName { get; set; }
+    public required string DisplayName { get; set; }
 
-    public abstract string? Description { get; set; }
+    public string? Description { get; set; }
 
     public required TaskStateId State { get; set; }
 

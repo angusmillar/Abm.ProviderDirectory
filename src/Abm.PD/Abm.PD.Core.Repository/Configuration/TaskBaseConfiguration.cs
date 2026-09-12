@@ -1,4 +1,5 @@
 using Abm.PD.Core.Domain.Entities;
+using Abm.PD.Core.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -10,11 +11,19 @@ internal sealed class TaskBaseConfiguration : IEntityTypeConfiguration<TaskBase>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        // Table-Per-Hierarchy: every TaskBase subtype (ExportLoaderTask today) shares this one
+        // table, discriminated by the stored TypeId column - see the design spec's TPH section for
+        // why this replaced the earlier TPC decision.
+        builder.ToTable("task");
         builder.HasKey(x => x.Id);
 
-        // Table-Per-Concrete-Type: TaskBase has no table of its own. Each concrete task type
-        // (ExportLoaderTask today) gets its own table carrying every TaskBase column plus its own -
-        // see the design spec's TPC section for why (no cross-task-type querying is needed yet).
-        builder.UseTpcMappingStrategy();
+        builder.Property(x => x.Code)
+            .HasMaxLength(EntityConfigurationConstants.CodeMaxLength);
+
+        builder.HasIndex(x => x.Code)
+            .IsUnique();
+
+        builder.HasDiscriminator(x => x.TypeId)
+            .HasValue<ExportLoaderTask>(TaskTypeId.BulkImport);
     }
 }
