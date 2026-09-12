@@ -10,6 +10,8 @@ namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
 
 public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
+    private readonly IntegrationTestFixture Fixture = fixture;
+
     private static ExportLoaderTask NewTask(
         string code,
         TaskStateId state = TaskStateId.Ready,
@@ -42,7 +44,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task AddAsync_NewTask_PersistsAndReturnsWithId()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
 
@@ -54,7 +56,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task GetByIdAsync_ExistingTask_ReturnsMatchingTaskWithParameter()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
@@ -69,7 +71,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task GetAllAsync_AfterAdd_ContainsAddedTask()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
@@ -82,7 +84,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task UpdateAsync_ExistingTask_PersistsChangesIncludingParameter()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
@@ -108,7 +110,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task UpdateAsync_NonExistentTask_ReturnsNull()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
 
@@ -120,7 +122,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task DeleteAsync_ExistingTask_RemovesItThenGetByIdReturnsNull()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
@@ -143,7 +145,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task DeleteAsync_NonExistentTask_ReturnsFalse()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
 
@@ -155,7 +157,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task SearchAsync_WithNoFilters_ReturnsAllTasks()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask task1 = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
@@ -177,7 +179,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task SearchAsync_ByCode_FindsMatchingTask()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         string code = Guid.NewGuid().ToString();
@@ -197,7 +199,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task SearchAsync_ByState_FindsOnlyMatchingState()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         await repository.AddAsync(NewTask(Guid.NewGuid().ToString(), TaskStateId.Ready), CancellationToken.None);
@@ -218,7 +220,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     [Fact]
     public async Task SearchAsync_ByLastStartRange_FindsOnlyTasksWithinRange()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository =
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         DateTime inRange = new(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc);

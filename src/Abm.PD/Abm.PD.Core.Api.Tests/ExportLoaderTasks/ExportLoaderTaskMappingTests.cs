@@ -9,6 +9,8 @@ namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
 
 public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
+    private readonly IntegrationTestFixture Fixture = fixture;
+
     [Fact]
     public async Task SaveAndReload_ExportLoaderTask_RoundTripsOwnedParameterAndTypeFilterListArray()
     {
@@ -35,7 +37,7 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
             },
         };
 
-        using (IServiceScope writeScope = fixture.Services.CreateScope())
+        using (IServiceScope writeScope = Fixture.Services.CreateScope())
         {
             ProviderDirectoryDbContext writeContext =
                 writeScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
@@ -45,7 +47,7 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
 
         // A second, independent scope/DbContext forces a real read from Postgres rather than the
         // first-level change tracker cache.
-        using IServiceScope readScope = fixture.Services.CreateScope();
+        using IServiceScope readScope = Fixture.Services.CreateScope();
         ProviderDirectoryDbContext readContext =
             readScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
         ExportLoaderTask reloaded = await readContext.ExportLoaderTasks

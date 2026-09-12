@@ -9,10 +9,12 @@ namespace Abm.PD.Core.Api.Tests.Tasks;
 
 public class TaskLookupSeedTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
+    private readonly IntegrationTestFixture Fixture = fixture;
+
     [Fact]
     public async Task TaskStateTable_AfterMigration_ContainsOneRowPerEnumMember()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         ProviderDirectoryDbContext dbContext = scope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
 
         List<TaskState> rows = await dbContext.TaskStates.AsNoTracking().ToListAsync();
@@ -27,7 +29,7 @@ public class TaskLookupSeedTests(IntegrationTestFixture fixture) : IntegrationTe
     [Fact]
     public async Task TaskTypeTable_AfterMigration_ContainsOneRowPerEnumMember()
     {
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         ProviderDirectoryDbContext dbContext = scope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
 
         List<TaskType> rows = await dbContext.TaskTypes.AsNoTracking().ToListAsync();
@@ -45,7 +47,7 @@ public class TaskLookupSeedTests(IntegrationTestFixture fixture) : IntegrationTe
         // ResetDatabaseAsync runs before every test via IntegrationTestBase.InitializeAsync - this
         // proves the Respawner ignore-list change (see IntegrationTestFixture) actually protects the
         // seeded lookup rows rather than wiping them.
-        using IServiceScope scope = fixture.Services.CreateScope();
+        using IServiceScope scope = Fixture.Services.CreateScope();
         ProviderDirectoryDbContext dbContext = scope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
 
         int count = await dbContext.TaskStates.AsNoTracking().CountAsync();

@@ -2,7 +2,7 @@ using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace Abm.PD.Core.Repository;
+namespace Abm.PD.Core.Repository.Repositories;
 
 public class ResourceRepository(ProviderDirectoryDbContext dbContext) : IResourceRepository
 {

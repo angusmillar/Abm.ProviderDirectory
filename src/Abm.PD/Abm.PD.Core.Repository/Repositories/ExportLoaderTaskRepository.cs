@@ -3,7 +3,7 @@ using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace Abm.PD.Core.Repository;
+namespace Abm.PD.Core.Repository.Repositories;
 
 public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : IExportLoaderTaskRepository
 {
