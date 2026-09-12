@@ -15,7 +15,10 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     private static ExportLoaderTask NewTask(
         string code,
         TaskStateId state = TaskStateId.Ready,
-        DateTime? lastStart = null)
+        DateTime? lastStart = null,
+        TimeSpan? triggerEvery = null,
+        DateTime? toStartAtUtc = null,
+        DateTime? toEndAtUtc = null)
     {
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
@@ -25,9 +28,9 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
             Description = null,
             State = state,
             StateReason = null,
-            TriggerEvery = TimeSpan.FromHours(24),
-            ToStartAtUtc = null,
-            ToEndAtUtc = null,
+            TriggerEvery = triggerEvery ?? TimeSpan.FromHours(24),
+            ToStartAtUtc = toStartAtUtc,
+            ToEndAtUtc = toEndAtUtc,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
             LastStart = lastStart,
@@ -242,5 +245,158 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         Assert.Contains(results, x => x.Id == matching.Id);
         Assert.DoesNotContain(results, x => x.Id == nonMatching.Id);
         Assert.All(results, x => Assert.InRange(x.LastStart!.Value, rangeFrom, rangeTo));
+    }
+
+    [Fact]
+    public async Task FindDueAsync_TaskNeverRun_IsDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.Contains(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_LastStartPlusTriggerEveryInFuture_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), lastStart: DateTime.UtcNow, triggerEvery: TimeSpan.FromHours(1)),
+            CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_BeforeToStartAtUtc_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        DateTime now = DateTime.UtcNow;
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), toStartAtUtc: now.AddDays(1)), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_AfterToEndAtUtc_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        DateTime now = DateTime.UtcNow;
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), toEndAtUtc: now.AddDays(-1)), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_InProgressTask_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task TryClaimAsync_ReadyTask_ClaimsAndSetsInProgressAndLastStart()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+        // Truncated to microsecond precision - Postgres timestamptz stores microseconds, not the
+        // 100ns ticks DateTime.UtcNow carries, so an untruncated value round-trips lossily.
+        DateTime claimTime = new(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
+
+        bool claimed = await repository.TryClaimAsync(added.Id, claimTime, CancellationToken.None);
+
+        Assert.True(claimed);
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.InProgress, fetched!.State);
+        Assert.Equal(claimTime, fetched.LastStart);
+    }
+
+    [Fact]
+    public async Task TryClaimAsync_AlreadyInProgressTask_ReturnsFalseAndLeavesLastStartUnchanged()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        DateTime originalLastStart = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress, lastStart: originalLastStart),
+            CancellationToken.None);
+
+        bool claimed = await repository.TryClaimAsync(added.Id, DateTime.UtcNow, CancellationToken.None);
+
+        Assert.False(claimed);
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(originalLastStart, fetched!.LastStart);
+    }
+
+    [Fact]
+    public async Task ReapStaleInProgressAsync_OlderThanCutoff_MovesToFailedWithReason()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        DateTime staleLastStart = DateTime.UtcNow.AddHours(-3);
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress, lastStart: staleLastStart),
+            CancellationToken.None);
+
+        await repository.ReapStaleInProgressAsync(DateTime.UtcNow.AddHours(-2), CancellationToken.None);
+
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.Failed, fetched!.State);
+        Assert.Equal("Reaped: exceeded expected run duration", fetched.StateReason);
+    }
+
+    [Fact]
+    public async Task ReapStaleInProgressAsync_NewerThanCutoff_IsLeftUnchanged()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        DateTime recentLastStart = DateTime.UtcNow.AddMinutes(-1);
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress, lastStart: recentLastStart),
+            CancellationToken.None);
+
+        await repository.ReapStaleInProgressAsync(DateTime.UtcNow.AddHours(-2), CancellationToken.None);
+
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.InProgress, fetched!.State);
+    }
+
+    [Fact]
+    public async Task RecordOutcomeAsync_SetsStateStateReasonAndLastEnd()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
+        // Truncated to microsecond precision - Postgres timestamptz stores microseconds, not the
+        // 100ns ticks DateTime.UtcNow carries, so an untruncated value round-trips lossily.
+        DateTime endTime = new(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
+
+        await repository.RecordOutcomeAsync(added.Id, TaskStateId.Completed, endTime, "Committed 4 of 5, 1 failed", CancellationToken.None);
+
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.Completed, fetched!.State);
+        Assert.Equal("Committed 4 of 5, 1 failed", fetched.StateReason);
+        Assert.Equal(endTime, fetched.LastEnd);
     }
 }

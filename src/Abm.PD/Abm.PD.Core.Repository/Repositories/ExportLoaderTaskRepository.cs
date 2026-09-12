@@ -114,4 +114,57 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
 
         return await query.ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.ExportLoaderTasks
+            .AsNoTracking()
+            .Where(t => t.State != TaskStateId.InProgress)
+            .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
+            .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
+            .Where(t => t.LastStart == null || t.LastStart + t.TriggerEvery <= nowUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> TryClaimAsync(
+        int id,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        int rows = await dbContext.ExportLoaderTasks
+            .Where(t => t.Id == id && t.State != TaskStateId.InProgress)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.State, TaskStateId.InProgress)
+                .SetProperty(t => t.LastStart, nowUtc)
+                .SetProperty(t => t.StateReason, (string?)null), cancellationToken);
+        return rows == 1;
+    }
+
+    public async Task ReapStaleInProgressAsync(
+        DateTime olderThanUtc,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.ExportLoaderTasks
+            .Where(t => t.State == TaskStateId.InProgress && t.LastStart != null && t.LastStart < olderThanUtc)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.State, TaskStateId.Failed)
+                .SetProperty(t => t.StateReason, "Reaped: exceeded expected run duration"), cancellationToken);
+    }
+
+    public async Task RecordOutcomeAsync(
+        int id,
+        TaskStateId state,
+        DateTime nowUtc,
+        string? stateReason,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.ExportLoaderTasks
+            .Where(t => t.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.State, state)
+                .SetProperty(t => t.LastEnd, nowUtc)
+                .SetProperty(t => t.StateReason, stateReason), cancellationToken);
+    }
 }
