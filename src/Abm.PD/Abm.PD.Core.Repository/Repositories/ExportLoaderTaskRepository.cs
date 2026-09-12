@@ -121,7 +121,8 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
     {
         return await dbContext.ExportLoaderTasks
             .AsNoTracking()
-            .Where(t => t.State != TaskStateId.InProgress)
+            .Where(t => t.State != TaskStateId.InProgress && t.State != TaskStateId.OnHold)
+            .Where(t => t.TriggerEvery > TimeSpan.Zero)
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
             .Where(t => t.LastStart == null || t.LastStart + t.TriggerEvery <= nowUtc)

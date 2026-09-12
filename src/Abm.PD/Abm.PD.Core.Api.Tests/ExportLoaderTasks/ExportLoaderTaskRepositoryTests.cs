@@ -315,6 +315,32 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     }
 
     [Fact]
+    public async Task FindDueAsync_OnHoldTask_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.OnHold), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_ZeroTriggerEvery_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), triggerEvery: TimeSpan.Zero), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
     public async Task TryClaimAsync_ReadyTask_ClaimsAndSetsInProgressAndLastStart()
     {
         using IServiceScope scope = Fixture.Services.CreateScope();

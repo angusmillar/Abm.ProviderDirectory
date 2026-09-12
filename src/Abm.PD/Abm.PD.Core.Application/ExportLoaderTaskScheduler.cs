@@ -5,6 +5,7 @@ using Abm.PD.BulkExport.Loader;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,7 +13,7 @@ namespace Abm.PD.Core.Application;
 
 public class ExportLoaderTaskScheduler(
     IExportLoaderTaskRepository repository,
-    IExportRunner exportRunner,
+    IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
     IOptions<ExportLoaderTaskSchedulerSettings> settings,
     ILogger<ExportLoaderTaskScheduler> logger) : ITimedHostedService
@@ -35,6 +36,14 @@ public class ExportLoaderTaskScheduler(
                 continue;
             }
 
+            // Each task gets its own DI scope so its IExportRunner - and the scoped IFhirExporter/
+            // IFhirBulkExporter underneath it - is a fresh instance. FhirBulkExporter is a stateful,
+            // one-instance-one-export-session service; sharing one instance across every task in a tick
+            // (as constructor injection into this class would do) made every task after the first fail
+            // with "session already completed".
+            using IServiceScope taskScope = serviceScopeFactory.CreateScope();
+            IExportRunner exportRunner = taskScope.ServiceProvider.GetRequiredService<IExportRunner>();
+
             try
             {
                 FhirBatchLoadResult result = await exportRunner.Run(task, cancellationToken);
@@ -43,7 +52,7 @@ public class ExportLoaderTaskScheduler(
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
                     $"Committed {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
-                    cancellationToken);
+                    CancellationToken.None);
             }
             catch (Exception exception)
             {
@@ -53,7 +62,7 @@ public class ExportLoaderTaskScheduler(
                     TaskStateId.Failed,
                     dateTimeProvider.Now.UtcDateTime,
                     exception.Message,
-                    cancellationToken);
+                    CancellationToken.None);
             }
         }
     }
