@@ -55,10 +55,15 @@ internal sealed class TpcOwnedEntityKeyNameFixupConvention : IModelFinalizingCon
             // The HasName() call below sets a hierarchy-wide PK name annotation on
             // principalEntityType's root, not a per-table one, so it only gives correct results
             // when exactly one concrete table in this TPC hierarchy has a table-split owned entity.
-            // Count how many distinct concrete tables the principal's hierarchy actually maps to
-            // (walking GetDerivedTypesInclusive() covers both an abstract root like TaskBase and a
-            // concrete principal) and refuse to silently misbehave once there is more than one.
-            int concreteTableCount = principalEntityType.GetDerivedTypesInclusive()
+            // principalEntityType here is the concrete leaf (e.g. ExportLoaderTask), and
+            // GetDerivedTypesInclusive() only walks DESCENDANTS of the type it is called on - a
+            // sibling subtype added later (e.g. AnotherTask : TaskBase) would not be a descendant of
+            // ExportLoaderTask, so counting from the leaf would always see just itself. Walk up to
+            // the shared hierarchy root first (TaskBase), then count distinct concrete tables across
+            // ALL of the root's descendants, and refuse to silently misbehave once there is more
+            // than one.
+            IConventionEntityType hierarchyRoot = principalEntityType.GetRootType();
+            int concreteTableCount = hierarchyRoot.GetDerivedTypesInclusive()
                 .Where(t => !t.IsAbstract())
                 .Select(t => (t.GetTableName(), t.GetSchema()))
                 .Distinct()
