@@ -10,6 +10,18 @@ internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<E
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        // TPH mapping otherwise nullifies a derived-type column regardless of the CLR property's own
+        // non-nullable int type - explicit Property(...).IsRequired() is needed on top of the
+        // relationship's IsRequired() to actually get a NOT NULL data_source_id column.
+        builder.Property(x => x.DataSourceId)
+            .IsRequired();
+
+        builder.HasOne(x => x.DataSource)
+            .WithMany()
+            .HasForeignKey(x => x.DataSourceId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.OwnsOne(x => x.Parameter, parameter =>
         {
             parameter.ToTable("export_loader_task_parameter");

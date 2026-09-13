@@ -7,7 +7,7 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
     : DbContext(options)
 {
     public DbSet<Resource> Resources => Set<Resource>();
-    public DbSet<ProviderDataSource> ProviderDataSource => Set<ProviderDataSource>();
+    public DbSet<DataSource> DataSource => Set<DataSource>();
     public DbSet<TaskState> TaskStates => Set<TaskState>();
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
     public DbSet<ExportLoaderTask> ExportLoaderTasks => Set<ExportLoaderTask>();

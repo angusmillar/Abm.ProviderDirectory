@@ -54,8 +54,15 @@ public static class ExportLoaderTaskEndpoints
     private static async Task<IResult> Create(
         ExportLoaderTaskRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IDataSourceRepository dataSourceRepository,
         CancellationToken cancellationToken)
     {
+        DataSource? dataSource = await dataSourceRepository.GetByIdAsync(request.DataSourceId, cancellationToken);
+        if (dataSource is null)
+        {
+            return Results.BadRequest($"DataSource {request.DataSourceId} does not exist");
+        }
+
         DateTime nowUtc = DateTime.UtcNow;
         ExportLoaderTask exportLoaderTask = new()
         {
@@ -71,6 +78,8 @@ public static class ExportLoaderTaskEndpoints
             UpdatedUtc = nowUtc,
             LastStart = null,
             LastEnd = null,
+            DataSourceId = dataSource.Id,
+            DataSource = dataSource,
             Parameter = new ExportParameter
             {
                 Type = request.Parameter.Type,
@@ -86,6 +95,7 @@ public static class ExportLoaderTaskEndpoints
         int id,
         ExportLoaderTaskRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IDataSourceRepository dataSourceRepository,
         CancellationToken cancellationToken)
     {
         // The repository's UpdateAsync copies LastStart/LastEnd/CreatedUtc straight from whatever
@@ -98,6 +108,12 @@ public static class ExportLoaderTaskEndpoints
             return Results.NotFound();
         }
 
+        DataSource? dataSource = await dataSourceRepository.GetByIdAsync(request.DataSourceId, cancellationToken);
+        if (dataSource is null)
+        {
+            return Results.BadRequest($"DataSource {request.DataSourceId} does not exist");
+        }
+
         existing.Code = request.Code;
         existing.DisplayName = request.DisplayName;
         existing.Description = request.Description;
@@ -107,6 +123,7 @@ public static class ExportLoaderTaskEndpoints
         existing.ToStartAtUtc = request.ToStartAtUtc;
         existing.ToEndAtUtc = request.ToEndAtUtc;
         existing.UpdatedUtc = DateTime.UtcNow;
+        existing.DataSourceId = dataSource.Id;
         existing.Parameter.Type = request.Parameter.Type;
         existing.Parameter.Since = request.Parameter.Since;
         existing.Parameter.TypeFilterList = request.Parameter.TypeFilterList;

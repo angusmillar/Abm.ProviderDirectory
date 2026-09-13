@@ -16,7 +16,7 @@ namespace Abm.PD.Core.Repository.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "provider_data_source",
+                name: "data_source",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -26,7 +26,7 @@ namespace Abm.PD.Core.Repository.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_provider_data_source", x => x.id);
+                    table.PrimaryKey("pk_data_source", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -41,31 +41,6 @@ namespace Abm.PD.Core.Repository.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_resource", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "task",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    type_id = table.Column<int>(type: "integer", nullable: false),
-                    code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    display_name = table.Column<string>(type: "text", nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    state = table.Column<int>(type: "integer", nullable: false),
-                    state_reason = table.Column<string>(type: "text", nullable: true),
-                    trigger_every = table.Column<TimeSpan>(type: "interval", nullable: false),
-                    to_start_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    to_end_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    last_start = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    last_end = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_task", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -90,6 +65,38 @@ namespace Abm.PD.Core.Repository.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_task_type", x => x.task_type_id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "task",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    type_id = table.Column<int>(type: "integer", nullable: false),
+                    code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    display_name = table.Column<string>(type: "text", nullable: false),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    state = table.Column<int>(type: "integer", nullable: false),
+                    state_reason = table.Column<string>(type: "text", nullable: true),
+                    trigger_every = table.Column<TimeSpan>(type: "interval", nullable: false),
+                    to_start_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    to_end_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    created_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    last_start = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    last_end = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    data_source_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_task", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_task_data_source_data_source_id",
+                        column: x => x.data_source_id,
+                        principalTable: "data_source",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -130,8 +137,8 @@ namespace Abm.PD.Core.Repository.Migrations
                 values: new object[] { 1, "BulkImport" });
 
             migrationBuilder.CreateIndex(
-                name: "ix_provider_data_source_code",
-                table: "provider_data_source",
+                name: "ix_data_source_code",
+                table: "data_source",
                 column: "code",
                 unique: true);
 
@@ -140,6 +147,11 @@ namespace Abm.PD.Core.Repository.Migrations
                 table: "task",
                 column: "code",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_task_data_source_id",
+                table: "task",
+                column: "data_source_id");
         }
 
         /// <inheritdoc />
@@ -147,9 +159,6 @@ namespace Abm.PD.Core.Repository.Migrations
         {
             migrationBuilder.DropTable(
                 name: "export_loader_task_parameter");
-
-            migrationBuilder.DropTable(
-                name: "provider_data_source");
 
             migrationBuilder.DropTable(
                 name: "resource");
@@ -162,6 +171,9 @@ namespace Abm.PD.Core.Repository.Migrations
 
             migrationBuilder.DropTable(
                 name: "task");
+
+            migrationBuilder.DropTable(
+                name: "data_source");
         }
     }
 }

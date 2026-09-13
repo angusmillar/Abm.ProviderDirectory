@@ -18,7 +18,8 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         DateTime? lastStart = null,
         TimeSpan? triggerEvery = null,
         DateTime? toStartAtUtc = null,
-        DateTime? toEndAtUtc = null)
+        DateTime? toEndAtUtc = null,
+        int? dataSourceId = null)
     {
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
@@ -35,6 +36,14 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
             UpdatedUtc = nowUtc,
             LastStart = lastStart,
             LastEnd = null,
+            // When no existing DataSourceId is supplied, a fresh, unsaved DataSource is attached via
+            // the navigation property - EF's graph tracking inserts it in the same SaveChanges call
+            // that adds the task. Passing an existing id (the update-payload case) skips that: the
+            // navigation is left null since only DataSourceId is read back off this transient object.
+            DataSourceId = dataSourceId ?? 0,
+            DataSource = dataSourceId is null
+                ? new DataSource { Code = Guid.NewGuid().ToString(), DisplayName = "Test Data Source" }
+                : null!,
             Parameter = new ExportParameter
             {
                 Type = "Patient",
@@ -92,7 +101,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
             scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
 
-        ExportLoaderTask update = NewTask(added.Code, TaskStateId.InProgress);
+        ExportLoaderTask update = NewTask(added.Code, TaskStateId.InProgress, dataSourceId: added.DataSourceId);
         update.Parameter.TypeFilterList = ["Patient", "Organization"];
         // A fixed value clear of DateTime.UtcNow's sub-microsecond precision, so it round-trips
         // through the timestamptz column (microsecond precision) without truncation flakiness.

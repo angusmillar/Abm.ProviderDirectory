@@ -2,19 +2,19 @@ using Abm.PD.Core.Domain.Entities;
 
 namespace Abm.PD.Core.Domain.Repositories;
 
-public interface IProviderDataSourceRepository
+public interface IDataSourceRepository
 {
-    Task<IReadOnlyList<ProviderDataSource>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<DataSource>> GetAllAsync(CancellationToken cancellationToken);
 
-    Task<ProviderDataSource?> GetByIdAsync(
+    Task<DataSource?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken);
 
-    Task<ProviderDataSource> AddAsync(
-        ProviderDataSource providerDataSource,
+    Task<DataSource> AddAsync(
+        DataSource dataSource,
         CancellationToken cancellationToken);
 
-    Task<ProviderDataSource?> UpdateAsync(
+    Task<DataSource?> UpdateAsync(
         int id,
         string code,
         string displayName,
@@ -24,7 +24,7 @@ public interface IProviderDataSourceRepository
         int id,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ProviderDataSource>> SearchAsync(
+    Task<IReadOnlyList<DataSource>> SearchAsync(
         string? code,
         string? displayName,
         CancellationToken cancellationToken);

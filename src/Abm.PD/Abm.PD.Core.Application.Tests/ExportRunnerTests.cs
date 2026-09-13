@@ -28,6 +28,8 @@ public class ExportRunnerTests
             UpdatedUtc = nowUtc,
             LastStart = nowUtc,
             LastEnd = null,
+            DataSourceId = 1,
+            DataSource = new DataSource { Id = 1, Code = "test-data-source", DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
         };
     }

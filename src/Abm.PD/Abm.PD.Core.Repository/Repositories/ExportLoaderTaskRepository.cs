@@ -10,6 +10,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
     public async Task<IReadOnlyList<ExportLoaderTask>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await dbContext.ExportLoaderTasks
+            .Include(x => x.DataSource)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
@@ -19,6 +20,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         CancellationToken cancellationToken)
     {
         return await dbContext.ExportLoaderTasks
+            .Include(x => x.DataSource)
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
@@ -27,6 +29,13 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {
+        // The caller's DataSource instance usually comes from a no-tracking query (or a different
+        // DbContext entirely), so it isn't in this context's change tracker yet. Attaching it first
+        // lets EF's identity-resolution convention decide the right state - Added if its key is still
+        // the CLR default (a genuinely new DataSource), Unchanged otherwise (an existing one) - rather
+        // than Add's graph walk treating every untracked reachable entity as new and attempting to
+        // re-insert an already-persisted DataSource, which violates its unique key.
+        dbContext.Attach(exportLoaderTask.DataSource);
         dbContext.ExportLoaderTasks.Add(exportLoaderTask);
         await dbContext.SaveChangesAsync(cancellationToken);
         return exportLoaderTask;
@@ -54,6 +63,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         existing.ToEndAtUtc = exportLoaderTask.ToEndAtUtc;
         existing.LastStart = exportLoaderTask.LastStart;
         existing.LastEnd = exportLoaderTask.LastEnd;
+        existing.DataSourceId = exportLoaderTask.DataSourceId;
         // CreatedUtc is deliberately never copied here - immutable after insert. UpdatedUtc always
         // is, caller-owned like every other field above.
         existing.UpdatedUtc = exportLoaderTask.UpdatedUtc;
@@ -90,7 +100,9 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         DateTime? lastStartTo,
         CancellationToken cancellationToken)
     {
-        IQueryable<ExportLoaderTask> query = dbContext.ExportLoaderTasks.AsNoTracking();
+        IQueryable<ExportLoaderTask> query = dbContext.ExportLoaderTasks
+            .Include(x => x.DataSource)
+            .AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(code))
         {
@@ -120,6 +132,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         CancellationToken cancellationToken)
     {
         return await dbContext.ExportLoaderTasks
+            .Include(t => t.DataSource)
             .AsNoTracking()
             .Where(t => t.State != TaskStateId.InProgress && t.State != TaskStateId.OnHold)
             .Where(t => t.TriggerEvery > TimeSpan.Zero)

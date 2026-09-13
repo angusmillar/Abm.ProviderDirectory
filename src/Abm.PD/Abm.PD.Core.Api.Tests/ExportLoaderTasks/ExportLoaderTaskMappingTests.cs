@@ -15,6 +15,20 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
     public async Task SaveAndReload_ExportLoaderTask_RoundTripsOwnedParameterAndTypeFilterListArray()
     {
         DateTime nowUtc = DateTime.UtcNow;
+        DataSource dataSource = new()
+        {
+            Code = Guid.NewGuid().ToString(),
+            DisplayName = "Provider Connect Australia",
+        };
+
+        using (IServiceScope dataSourceScope = Fixture.Services.CreateScope())
+        {
+            ProviderDirectoryDbContext dataSourceContext =
+                dataSourceScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
+            dataSourceContext.DataSource.Add(dataSource);
+            await dataSourceContext.SaveChangesAsync();
+        }
+
         ExportLoaderTask task = new()
         {
             Code = "bulk-import-au",
@@ -29,6 +43,8 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
             UpdatedUtc = nowUtc,
             LastStart = null,
             LastEnd = null,
+            DataSourceId = dataSource.Id,
+            DataSource = dataSource,
             Parameter = new ExportParameter
             {
                 Type = "Patient,Practitioner",
@@ -41,6 +57,10 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
         {
             ProviderDirectoryDbContext writeContext =
                 writeScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
+            // dataSource was saved and fetched through a different DbContext above, so this context's
+            // change tracker doesn't know about it yet - attach it first so EF recognises it as
+            // already-existing (its key is non-default) rather than re-inserting it as new.
+            writeContext.Attach(dataSource);
             writeContext.ExportLoaderTasks.Add(task);
             await writeContext.SaveChangesAsync();
         }
@@ -58,5 +78,6 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
         Assert.Equal(TaskStateId.Ready, reloaded.State);
         Assert.Equal(TaskTypeId.BulkImport, reloaded.TypeId);
         Assert.Equal(new[] { "Patient", "Practitioner" }, reloaded.Parameter.TypeFilterList);
+        Assert.Equal(dataSource.Id, reloaded.DataSourceId);
     }
 }

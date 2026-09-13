@@ -33,6 +33,8 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
             UpdatedUtc = nowUtc,
             LastStart = lastStart,
             LastEnd = null,
+            DataSourceId = 0,
+            DataSource = new DataSource { Code = Guid.NewGuid().ToString(), DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
         };
     }

@@ -9,5 +9,9 @@ public class ExportLoaderTask : TaskBase
     {
     }
 
+    public required int DataSourceId { get; set; }
+
+    public required DataSource DataSource { get; set; }
+
     public required ExportParameter Parameter { get; set; }
 }

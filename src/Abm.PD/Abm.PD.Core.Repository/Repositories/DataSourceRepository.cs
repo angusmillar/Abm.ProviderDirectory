@@ -4,74 +4,74 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Abm.PD.Core.Repository.Repositories;
 
-public class ProviderDataSourceRepository(ProviderDirectoryDbContext dbContext) : IProviderDataSourceRepository
+public class DataSourceRepository(ProviderDirectoryDbContext dbContext) : IDataSourceRepository
 {
-    public async Task<IReadOnlyList<ProviderDataSource>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DataSource>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return await dbContext.ProviderDataSource
+        return await dbContext.DataSource
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ProviderDataSource?> GetByIdAsync(
+    public async Task<DataSource?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
     {
-        return await dbContext.ProviderDataSource
+        return await dbContext.DataSource
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public async Task<ProviderDataSource> AddAsync(
-        ProviderDataSource providerDataSource,
+    public async Task<DataSource> AddAsync(
+        DataSource dataSource,
         CancellationToken cancellationToken)
     {
-        dbContext.ProviderDataSource.Add(providerDataSource);
+        dbContext.DataSource.Add(dataSource);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return providerDataSource;
+        return dataSource;
     }
 
-    public async Task<ProviderDataSource?> UpdateAsync(
+    public async Task<DataSource?> UpdateAsync(
         int id,
         string code,
         string displayName,
         CancellationToken cancellationToken)
     {
-        ProviderDataSource? providerDataSource = await dbContext.ProviderDataSource
+        DataSource? dataSource = await dbContext.DataSource
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (providerDataSource is null)
+        if (dataSource is null)
         {
             return null;
         }
 
-        providerDataSource.Code = code;
-        providerDataSource.DisplayName = displayName;
+        dataSource.Code = code;
+        dataSource.DisplayName = displayName;
         await dbContext.SaveChangesAsync(cancellationToken);
-        return providerDataSource;
+        return dataSource;
     }
 
     public async Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken)
     {
-        ProviderDataSource? providerDataSource = await dbContext.ProviderDataSource
+        DataSource? dataSource = await dbContext.DataSource
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (providerDataSource is null)
+        if (dataSource is null)
         {
             return false;
         }
 
-        dbContext.ProviderDataSource.Remove(providerDataSource);
+        dbContext.DataSource.Remove(dataSource);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<IReadOnlyList<ProviderDataSource>> SearchAsync(
+    public async Task<IReadOnlyList<DataSource>> SearchAsync(
         string? code,
         string? displayName,
         CancellationToken cancellationToken)
     {
-        IQueryable<ProviderDataSource> query = dbContext.ProviderDataSource.AsNoTracking();
+        IQueryable<DataSource> query = dbContext.DataSource.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(code))
         {
             query = query.Where(x => x.Code == code);

@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260912132056_InitialCreate")]
+    [Migration("20260913120952_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace Abm.PD.Core.Repository.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ProviderDataSource", b =>
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.DataSource", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -47,13 +47,13 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnName("display_name");
 
                     b.HasKey("Id")
-                        .HasName("pk_provider_data_source");
+                        .HasName("pk_data_source");
 
                     b.HasIndex("Code")
                         .IsUnique()
-                        .HasDatabaseName("ix_provider_data_source_code");
+                        .HasDatabaseName("ix_data_source_code");
 
-                    b.ToTable("provider_data_source", (string)null);
+                    b.ToTable("data_source", (string)null);
                 });
 
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.Resource", b =>
@@ -233,11 +233,25 @@ namespace Abm.PD.Core.Repository.Migrations
                 {
                     b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
 
+                    b.Property<int>("DataSourceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("data_source_id");
+
+                    b.HasIndex("DataSourceId")
+                        .HasDatabaseName("ix_task_data_source_id");
+
                     b.HasDiscriminator().HasValue(1);
                 });
 
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportLoaderTask", b =>
                 {
+                    b.HasOne("Abm.PD.Core.Domain.Entities.DataSource", "DataSource")
+                        .WithMany()
+                        .HasForeignKey("DataSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_task_data_source_data_source_id");
+
                     b.OwnsOne("Abm.PD.Core.Domain.Entities.ExportParameter", "Parameter", b1 =>
                         {
                             b1.Property<int>("ExportLoaderTaskId")
@@ -267,6 +281,8 @@ namespace Abm.PD.Core.Repository.Migrations
                                 .HasForeignKey("ExportLoaderTaskId")
                                 .HasConstraintName("fk_export_loader_task_parameter_task");
                         });
+
+                    b.Navigation("DataSource");
 
                     b.Navigation("Parameter")
                         .IsRequired();

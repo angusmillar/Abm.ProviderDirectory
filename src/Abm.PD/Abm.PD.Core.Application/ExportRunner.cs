@@ -26,6 +26,7 @@ public class ExportRunner(
 
         logger.LogInformation("ExportLoaderTask {TaskCode} download manifest received, loading into target", exportLoaderTask.Code);
 
+        //throw new NotImplementedException();
         return await fhirBatchLoader.Load(
             exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
             cancellationToken: cancellationToken);
