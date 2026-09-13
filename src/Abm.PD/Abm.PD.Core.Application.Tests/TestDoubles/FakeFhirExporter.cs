@@ -9,6 +9,8 @@ namespace Abm.PD.Core.Application.Tests.TestDoubles;
 
 public sealed class FakeFhirExporter : IFhirExporter
 {
+    public string? JobId { get; set; } = "test-job-id";
+
     public FhirBulkExportManifest? ManifestToReturn { get; set; } = new FhirBulkExportManifest
     {
         TransactionTime = DateTimeOffset.UtcNow,

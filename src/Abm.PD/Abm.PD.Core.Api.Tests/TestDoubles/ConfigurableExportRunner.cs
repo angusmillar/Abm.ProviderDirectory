@@ -1,5 +1,5 @@
-using Abm.PD.BulkExport.Loader;
 using Abm.PD.Core.Application;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Domain.Entities;
 
 namespace Abm.PD.Core.Api.Tests.TestDoubles;
@@ -12,9 +12,9 @@ namespace Abm.PD.Core.Api.Tests.TestDoubles;
 /// </summary>
 public sealed class ConfigurableExportRunner : IExportRunner
 {
-    public Func<ExportLoaderTask, CancellationToken, Task<FhirBatchLoadResult>>? Behaviour { get; set; }
+    public Func<ExportLoaderTask, CancellationToken, Task<SourceResourceLoadResult>>? Behaviour { get; set; }
 
-    public Task<FhirBatchLoadResult> Run(
+    public Task<SourceResourceLoadResult> Run(
         ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {

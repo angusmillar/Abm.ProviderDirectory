@@ -1,4 +1,5 @@
 using Abm.Core.HostedService;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,11 @@ public static class ServiceCollectionExtension
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<SourceResourceLoaderSettings>()
+            .Bind(configuration.GetSection(SourceResourceLoaderSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // AddTimedHostedService<T>'s configurator runs synchronously at registration time, before the
         // host is built, so it cannot resolve IOptions<T> from the container the way the settings
         // above are read once the app starts - PollInterval is read straight off configuration here
@@ -25,6 +31,7 @@ public static class ServiceCollectionExtension
             .Get<ExportLoaderTaskSchedulerSettings>() ?? new ExportLoaderTaskSchedulerSettings();
 
         services.AddScoped<IExportRunner, ExportRunner>();
+        services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
         // AddTimedHostedService<T> already registers T (ExportLoaderTaskScheduler) as Scoped and adds
         // the IHostedService that ticks it - no separate AddScoped<ExportLoaderTaskScheduler>() call.

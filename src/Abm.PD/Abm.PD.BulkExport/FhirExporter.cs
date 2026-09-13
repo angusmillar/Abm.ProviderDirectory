@@ -16,6 +16,8 @@ public class FhirExporter(
     private TimeSpan PollingTimeSpan = TimeSpan.FromSeconds(30);
     private FhirBulkExportState? BulkExportState;
 
+    public string? JobId => BulkExportState?.JobId;
+
     public async Task<FhirBulkExportManifest?> RequestDownloadManifest(
         Parameters parameters,
         CancellationToken cancellationToken)

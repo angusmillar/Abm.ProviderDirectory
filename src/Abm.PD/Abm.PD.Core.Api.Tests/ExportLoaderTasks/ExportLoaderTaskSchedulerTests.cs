@@ -1,7 +1,7 @@
-using Abm.PD.BulkExport.Loader;
 using Abm.PD.Core.Api.Tests.Fixtures;
 using Abm.PD.Core.Api.Tests.TestDoubles;
 using Abm.PD.Core.Application;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
@@ -48,7 +48,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         ExportLoaderTaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
         exportRunner.Behaviour = (_, _) => Task.FromResult(
-            new FhirBatchLoadResult(SubmittedCount: 5, CommittedCount: 4, FailedCount: 1, BatchCount: 1, RetainedFailures: []));
+            new SourceResourceLoadResult(SubmittedCount: 5, CommittedCount: 4, FailedCount: 1, BatchCount: 1, RetainedFailures: []));
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -56,7 +56,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         Assert.NotNull(updated);
         Assert.Equal(TaskStateId.Completed, updated!.State);
         Assert.NotNull(updated.LastEnd);
-        Assert.Equal("Committed 4 of 5, 1 failed", updated.StateReason);
+        Assert.Equal("Persisted 4 of 5, 1 failed", updated.StateReason);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         exportRunner.Behaviour = (_, _) =>
         {
             wasCalled = true;
-            return Task.FromResult(new FhirBatchLoadResult(0, 0, 0, 0, []));
+            return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
         };
 
         await scheduler.DoWork(CancellationToken.None);
@@ -111,7 +111,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         // stale is comfortably past that without needing to wait in real time.
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.InProgress, lastStart: DateTime.UtcNow.AddMinutes(-10)), CancellationToken.None);
-        exportRunner.Behaviour = (_, _) => Task.FromResult(new FhirBatchLoadResult(0, 0, 0, 0, []));
+        exportRunner.Behaviour = (_, _) => Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
 
         await scheduler.DoWork(CancellationToken.None);
 

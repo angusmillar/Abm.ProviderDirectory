@@ -1,7 +1,7 @@
 using Abm.Core.HostedService;
 using Abm.Core.Time;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.Settings;
-using Abm.PD.BulkExport.Loader;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
@@ -46,12 +46,12 @@ public class ExportLoaderTaskScheduler(
 
             try
             {
-                FhirBatchLoadResult result = await exportRunner.Run(task, cancellationToken);
+                SourceResourceLoadResult result = await exportRunner.Run(task, cancellationToken);
                 await repository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
-                    $"Committed {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
+                    $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
                     CancellationToken.None);
             }
             catch (Exception exception)

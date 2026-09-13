@@ -6,6 +6,12 @@ namespace Abm.PD.BulkExport;
 
 public interface IFhirExporter
 {
+    /// <summary>
+    /// The current export session's server-assigned job id, populated once <see cref="RequestDownloadManifest"/>
+    /// has been called. Null before then.
+    /// </summary>
+    string? JobId { get; }
+
     Task<FhirBulkExportManifest?> RequestDownloadManifest(
         Parameters parameters,
         CancellationToken cancellationToken);

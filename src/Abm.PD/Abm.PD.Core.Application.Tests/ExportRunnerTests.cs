@@ -1,5 +1,5 @@
 using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.Loader;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.Tests.TestDoubles;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
@@ -35,7 +35,7 @@ public class ExportRunnerTests
     }
 
     [Fact]
-    public async Task Run_StreamsExportIntoBatchLoader_ReturnsLoadResult()
+    public async Task Run_StreamsExportIntoSourceResourceLoader_ReturnsLoadResult()
     {
         FakeFhirExporter fakeExporter = new();
         fakeExporter.ResourcesToStream.Add(new FhirBulkExportResource(
@@ -43,17 +43,20 @@ public class ExportRunnerTests
             ManifestOutputType: "Patient",
             SourceUrl: new Uri("https://export.test/Patient.ndjson"),
             LineNumber: 1));
-        FakeFhirBatchLoader fakeLoader = new()
+        FakeSourceResourceLoader fakeLoader = new()
         {
-            ResultToReturn = new FhirBatchLoadResult(
+            ResultToReturn = new SourceResourceLoadResult(
                 SubmittedCount: 1, CommittedCount: 1, FailedCount: 0, BatchCount: 1, RetainedFailures: []),
         };
         ExportRunner runner = new(NullLogger<ExportRunner>.Instance, fakeExporter, fakeLoader);
+        ExportLoaderTask task = NewTask();
 
-        FhirBatchLoadResult result = await runner.Run(NewTask(), CancellationToken.None);
+        SourceResourceLoadResult result = await runner.Run(task, CancellationToken.None);
 
         Assert.Equal(1, result.CommittedCount);
         Assert.Single(fakeLoader.ReceivedResources);
+        Assert.Equal(fakeExporter.JobId, fakeLoader.ReceivedJobId);
+        Assert.Same(task.DataSource, fakeLoader.ReceivedDataSource);
         Assert.NotNull(fakeExporter.ReceivedParameters);
     }
 
@@ -61,7 +64,7 @@ public class ExportRunnerTests
     public async Task Run_NullManifest_ThrowsArgumentNullException()
     {
         FakeFhirExporter fakeExporter = new() { ManifestToReturn = null };
-        FakeFhirBatchLoader fakeLoader = new();
+        FakeSourceResourceLoader fakeLoader = new();
         ExportRunner runner = new(NullLogger<ExportRunner>.Instance, fakeExporter, fakeLoader);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() => runner.Run(NewTask(), CancellationToken.None));

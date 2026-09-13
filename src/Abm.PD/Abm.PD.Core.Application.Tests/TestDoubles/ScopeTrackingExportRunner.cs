@@ -1,4 +1,4 @@
-using Abm.PD.BulkExport.Loader;
+using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Domain.Entities;
 
 namespace Abm.PD.Core.Application.Tests.TestDoubles;
@@ -9,12 +9,12 @@ public sealed class ScopeTrackingExportRunner(List<(int TaskId, Guid InstanceId)
 {
     private readonly Guid InstanceId = Guid.NewGuid();
 
-    public Task<FhirBatchLoadResult> Run(
+    public Task<SourceResourceLoadResult> Run(
         ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {
         calls.Add((exportLoaderTask.Id, InstanceId));
-        return Task.FromResult(new FhirBatchLoadResult(
+        return Task.FromResult(new SourceResourceLoadResult(
             SubmittedCount: 0, CommittedCount: 0, FailedCount: 0, BatchCount: 0, RetainedFailures: []));
     }
 }
