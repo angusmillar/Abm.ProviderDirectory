@@ -15,7 +15,7 @@ public sealed class ConfigurableExportRunner : IExportRunner
     public Func<ExportLoaderTask, CancellationToken, Task<FhirBatchLoadResult>>? Behaviour { get; set; }
 
     public Task<FhirBatchLoadResult> Run(
-        ExportLoaderTask task,
+        ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {
         if (Behaviour is null)
@@ -24,6 +24,6 @@ public sealed class ConfigurableExportRunner : IExportRunner
                 $"{nameof(ConfigurableExportRunner)}.{nameof(Behaviour)} was not set before the scheduler ran.");
         }
 
-        return Behaviour(task, cancellationToken);
+        return Behaviour(exportLoaderTask, cancellationToken);
     }
 }

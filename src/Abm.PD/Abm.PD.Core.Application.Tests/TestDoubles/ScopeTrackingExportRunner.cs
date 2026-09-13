@@ -10,10 +10,10 @@ public sealed class ScopeTrackingExportRunner(List<(int TaskId, Guid InstanceId)
     private readonly Guid InstanceId = Guid.NewGuid();
 
     public Task<FhirBatchLoadResult> Run(
-        ExportLoaderTask task,
+        ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {
-        calls.Add((task.Id, InstanceId));
+        calls.Add((exportLoaderTask.Id, InstanceId));
         return Task.FromResult(new FhirBatchLoadResult(
             SubmittedCount: 0, CommittedCount: 0, FailedCount: 0, BatchCount: 0, RetainedFailures: []));
     }

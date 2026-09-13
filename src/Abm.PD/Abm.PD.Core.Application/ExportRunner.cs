@@ -14,17 +14,17 @@ public class ExportRunner(
     IFhirBatchLoader fhirBatchLoader) : IExportRunner
 {
     public async Task<FhirBatchLoadResult> Run(
-        ExportLoaderTask task,
+        ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken)
     {
-        Parameters parameters = FhirExportQuery.FromParameter(task.Parameter);
+        Parameters parameters = FhirExportQuery.FromParameter(exportLoaderTask.Parameter);
 
         FhirBulkExportManifest? fhirBulkExportManifest =
             await fhirExporter.RequestDownloadManifest(parameters, cancellationToken);
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
 
-        logger.LogInformation("ExportLoaderTask {TaskCode} download manifest received, loading into target", task.Code);
+        logger.LogInformation("ExportLoaderTask {TaskCode} download manifest received, loading into target", exportLoaderTask.Code);
 
         return await fhirBatchLoader.Load(
             exportResources: fhirExporter.StreamedExportFileList(cancellationToken),

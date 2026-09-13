@@ -6,6 +6,6 @@ namespace Abm.PD.Core.Application;
 public interface IExportRunner
 {
     Task<FhirBatchLoadResult> Run(
-        ExportLoaderTask task,
+        ExportLoaderTask exportLoaderTask,
         CancellationToken cancellationToken);
 }
