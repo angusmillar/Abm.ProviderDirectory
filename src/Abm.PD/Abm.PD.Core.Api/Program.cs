@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Abm.PD.Core.Api.Endpoints;
 using Abm.PD.Core.Api.Settings;
 using Abm.PD.Core.Repository;
@@ -14,6 +15,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Use Serilog for logging, configured entirely from the Serilog config section.
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
+
+// Every domain enum exposed over the API (TaskStateId, TaskTypeId) is serialised and bound by its
+// member name rather than its underlying int, so callers see "InProgress" instead of 2.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddOptions<DatabaseSettings>()
     .Bind(builder.Configuration.GetSection(DatabaseSettings.SectionName))

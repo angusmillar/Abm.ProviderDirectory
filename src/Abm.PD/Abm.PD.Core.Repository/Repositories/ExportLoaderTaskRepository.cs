@@ -134,7 +134,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         return await dbContext.ExportLoaderTasks
             .Include(t => t.DataSource)
             .AsNoTracking()
-            .Where(t => t.State != TaskStateId.InProgress && t.State != TaskStateId.OnHold)
+            .Where(t => t.State == TaskStateId.Ready || t.State != TaskStateId.Completed)
             .Where(t => t.TriggerEvery > TimeSpan.Zero)
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
@@ -148,7 +148,7 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         CancellationToken cancellationToken)
     {
         int rows = await dbContext.ExportLoaderTasks
-            .Where(t => t.Id == id && t.State != TaskStateId.InProgress)
+            .Where(t => t.Id == id && (t.State == TaskStateId.Ready || t.State == TaskStateId.Completed))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.State, TaskStateId.InProgress)
                 .SetProperty(t => t.LastStart, nowUtc)

@@ -1,5 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Abm.PD.Core.Api.Contracts;
 using Abm.PD.Core.Api.Tests.Fixtures;
 using Abm.PD.Core.Domain.Entities;
@@ -9,6 +12,15 @@ namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
 
 public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
+    // The API serialises TaskStateId/TaskTypeId as their member name (see Program.cs's
+    // ConfigureHttpJsonOptions), so responses containing those enums need the matching converter to
+    // deserialise here - System.Net.Http.Json otherwise uses JsonSerializerOptions.Default, which only
+    // understands the underlying int.
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private async Task<int> CreateDataSourceIdAsync()
     {
         DataSourceRequest request = new(Guid.NewGuid().ToString(), "Provider Connect Australia");
@@ -21,7 +33,8 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
         string code,
         int dataSourceId,
         TaskStateId state = TaskStateId.Ready,
-        DateTime? toStartAtUtc = null)
+        DateTimeOffset? toStartAtUtc = null,
+        DateTimeOffset? since = null)
     {
         return new ExportLoaderTaskRequest(
             Code: code,
@@ -35,9 +48,19 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
             DataSourceId: dataSourceId,
             Parameter: new ExportLoaderTaskParameterRequest(
                 Type: "Patient",
-                Since: null,
+                Since: since,
                 TypeFilterList: ["Patient"]));
     }
+
+    private static ExportLoaderTaskUpdateRequest AsUpdateRequest(ExportLoaderTaskResponse response) => new(
+        DisplayName: response.DisplayName,
+        Description: response.Description,
+        State: response.State,
+        StateReason: response.StateReason,
+        TriggerEvery: response.TriggerEvery,
+        ToStartAtUtc: response.ToStartAtUtc,
+        ToEndAtUtc: response.ToEndAtUtc,
+        Parameter: response.Parameter);
 
     [Fact]
     public async Task Create_ValidRequest_Returns201WithCreatedExportLoaderTask()
@@ -48,17 +71,49 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
         HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        ExportLoaderTask? created = await response.Content.ReadFromJsonAsync<ExportLoaderTask>();
+        ExportLoaderTaskResponse? created = await response.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions);
         Assert.NotNull(created);
         Assert.Equal(request.Code, created!.Code);
         Assert.Equal(request.DisplayName, created.DisplayName);
         Assert.Equal(TaskTypeId.BulkImport, created.TypeId);
         Assert.Equal(new[] { "Patient" }, created.Parameter.TypeFilterList);
         Assert.Equal(dataSourceId, created.DataSourceId);
-        Assert.Null(created.LastStart);
-        Assert.Null(created.LastEnd);
+        Assert.Null(created.LastStartUtc);
+        Assert.Null(created.LastEndUtc);
         Assert.NotEqual(default, created.CreatedUtc);
         Assert.NotEqual(default, created.UpdatedUtc);
+    }
+
+    [Fact]
+    public async Task Create_ValidRequest_SerialisesTypeIdAndStateAsEnumNamesNotIntegers()
+    {
+        ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
+
+        HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
+
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"typeId\":\"BulkImport\"", body);
+        Assert.Contains("\"state\":\"Ready\"", body);
+        Assert.DoesNotContain("\"typeId\":1", body);
+        Assert.DoesNotContain("\"state\":1", body);
+    }
+
+    [Fact]
+    public async Task Create_WithNonUtcOffsetToStartAtUtc_Succeeds()
+    {
+        // ExportLoaderTaskRequest.ToStartAtUtc is a DateTimeOffset so it carries its offset
+        // explicitly - a plain DateTime? here could otherwise deserialise with Kind=Local for a
+        // non-zero offset, which Npgsql rejects for a "timestamp with time zone" column.
+        int dataSourceId = await CreateDataSourceIdAsync();
+        DateTimeOffset toStartAtUtc = new(2026, 9, 15, 8, 0, 0, TimeSpan.FromHours(10));
+        ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), dataSourceId, toStartAtUtc: toStartAtUtc);
+
+        HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        ExportLoaderTaskResponse? created = await response.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions);
+        Assert.NotNull(created);
+        Assert.Equal(toStartAtUtc, created!.ToStartAtUtc);
     }
 
     [Fact]
@@ -72,14 +127,28 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
     }
 
     [Fact]
+    public async Task Create_DuplicateCode_Returns400()
+    {
+        string code = Guid.NewGuid().ToString();
+        int dataSourceId = await CreateDataSourceIdAsync();
+        HttpResponseMessage firstResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", NewRequest(code, dataSourceId));
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", NewRequest(code, dataSourceId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetById_ExistingExportLoaderTask_ReturnsMatchingExportLoaderTask()
     {
         int dataSourceId = await CreateDataSourceIdAsync();
         ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), dataSourceId);
         HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
-        ExportLoaderTask created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTask>())!;
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
 
-        ExportLoaderTask? fetched = await HttpClient.GetFromJsonAsync<ExportLoaderTask>($"/ExportLoaderTask/{created.Id}");
+        ExportLoaderTaskResponse? fetched =
+            await HttpClient.GetFromJsonAsync<ExportLoaderTaskResponse>($"/ExportLoaderTask/{created.Id}", JsonOptions);
 
         Assert.NotNull(fetched);
         Assert.Equal(created.Id, fetched!.Id);
@@ -99,9 +168,10 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
     {
         ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
         HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
-        ExportLoaderTask created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTask>())!;
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
 
-        List<ExportLoaderTask>? all = await HttpClient.GetFromJsonAsync<List<ExportLoaderTask>>("/ExportLoaderTask");
+        List<ExportLoaderTaskResponse>? all =
+            await HttpClient.GetFromJsonAsync<List<ExportLoaderTaskResponse>>("/ExportLoaderTask", JsonOptions);
 
         Assert.NotNull(all);
         Assert.Contains(all!, x => x.Id == created.Id);
@@ -113,8 +183,8 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
         string code = Guid.NewGuid().ToString();
         await HttpClient.PostAsJsonAsync("/ExportLoaderTask", NewRequest(code, await CreateDataSourceIdAsync()));
 
-        List<ExportLoaderTask>? results = await HttpClient.GetFromJsonAsync<List<ExportLoaderTask>>(
-            $"/ExportLoaderTask?code={code}");
+        List<ExportLoaderTaskResponse>? results = await HttpClient.GetFromJsonAsync<List<ExportLoaderTaskResponse>>(
+            $"/ExportLoaderTask?code={code}", JsonOptions);
 
         Assert.NotNull(results);
         Assert.Single(results!);
@@ -128,10 +198,10 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
         await HttpClient.PostAsJsonAsync("/ExportLoaderTask", NewRequest(Guid.NewGuid().ToString(), dataSourceId, TaskStateId.Ready));
         HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync(
             "/ExportLoaderTask", NewRequest(Guid.NewGuid().ToString(), dataSourceId, TaskStateId.InProgress));
-        ExportLoaderTask inProgress = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTask>())!;
+        ExportLoaderTaskResponse inProgress = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
 
-        List<ExportLoaderTask>? results = await HttpClient.GetFromJsonAsync<List<ExportLoaderTask>>(
-            "/ExportLoaderTask?state=InProgress");
+        List<ExportLoaderTaskResponse>? results = await HttpClient.GetFromJsonAsync<List<ExportLoaderTaskResponse>>(
+            "/ExportLoaderTask?state=InProgress", JsonOptions);
 
         Assert.NotNull(results);
         Assert.Contains(results!, x => x.Id == inProgress.Id);
@@ -143,52 +213,98 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
     {
         ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
         HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
-        ExportLoaderTask created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTask>())!;
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
         // Postgres timestamptz truncates to microsecond precision, so the in-memory CreatedUtc from
         // the POST response has finer resolution than what a DB round-trip will return - fetch the
         // persisted baseline rather than comparing against it directly.
-        ExportLoaderTask persistedBaseline = (await HttpClient.GetFromJsonAsync<ExportLoaderTask>($"/ExportLoaderTask/{created.Id}"))!;
+        ExportLoaderTaskResponse persistedBaseline =
+            (await HttpClient.GetFromJsonAsync<ExportLoaderTaskResponse>($"/ExportLoaderTask/{created.Id}", JsonOptions))!;
 
-        ExportLoaderTaskRequest updateRequest = new(
-            Code: created.Code,
-            DisplayName: "Updated Display Name",
-            Description: created.Description,
-            State: TaskStateId.InProgress,
-            StateReason: "Running now",
-            TriggerEvery: created.TriggerEvery,
-            ToStartAtUtc: created.ToStartAtUtc,
-            ToEndAtUtc: created.ToEndAtUtc,
-            DataSourceId: created.DataSourceId,
-            Parameter: new ExportLoaderTaskParameterRequest(
+        ExportLoaderTaskUpdateRequest updateRequest = AsUpdateRequest(created) with
+        {
+            DisplayName = "Updated Display Name",
+            State = TaskStateId.InProgress,
+            StateReason = "Running now",
+            Parameter = new ExportLoaderTaskParameterRequest(
                 Type: "Patient,Organization",
                 Since: null,
-                TypeFilterList: ["Patient", "Organization"]));
-        HttpResponseMessage updateResponse = await HttpClient.PutAsJsonAsync($"/ExportLoaderTask/{created.Id}", updateRequest);
+                TypeFilterList: ["Patient", "Organization"]),
+        };
+        HttpResponseMessage updateResponse = await HttpClient.PutAsJsonAsync($"/ExportLoaderTask/{created.Id}", updateRequest, JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        ExportLoaderTask? updated = await updateResponse.Content.ReadFromJsonAsync<ExportLoaderTask>();
+        ExportLoaderTaskResponse? updated = await updateResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("Updated Display Name", updated!.DisplayName);
         Assert.Equal(TaskStateId.InProgress, updated.State);
         Assert.Equal(new[] { "Patient", "Organization" }, updated.Parameter.TypeFilterList);
         Assert.Equal(persistedBaseline.CreatedUtc, updated.CreatedUtc);
-        Assert.Null(updated.LastStart);
+        Assert.Null(updated.LastStartUtc);
         Assert.True(updated.UpdatedUtc >= persistedBaseline.UpdatedUtc);
+        // Code and DataSourceId are not part of the update payload - they must survive unchanged.
+        Assert.Equal(created.Code, updated.Code);
+        Assert.Equal(created.DataSourceId, updated.DataSourceId);
 
         // The PUT response reflects the tracked in-memory entity - fetch it back to prove the
         // change actually persisted to Postgres.
-        ExportLoaderTask? fetched = await HttpClient.GetFromJsonAsync<ExportLoaderTask>($"/ExportLoaderTask/{created.Id}");
+        ExportLoaderTaskResponse? fetched =
+            await HttpClient.GetFromJsonAsync<ExportLoaderTaskResponse>($"/ExportLoaderTask/{created.Id}", JsonOptions);
         Assert.NotNull(fetched);
         Assert.Equal("Updated Display Name", fetched!.DisplayName);
         Assert.Equal(new[] { "Patient", "Organization" }, fetched.Parameter.TypeFilterList);
     }
 
     [Fact]
+    public async Task GetById_ResponseBody_CanBePutStraightBackWithoutModification()
+    {
+        // The whole point of ExportLoaderTaskUpdateRequest excluding the server-controlled fields
+        // (Id, TypeId, Code, DataSourceId, DataSource, CreatedUtc, UpdatedUtc, LastStartUtc,
+        // LastEndUtc) is that a client can round-trip a GET response straight back through PUT
+        // without stripping anything out first - the extra JSON properties are just ignored. A
+        // non-null Since is set here because the GET response converts it (and every other time
+        // value) to ServiceDefaultTimeZone's offset (e.g. +10:00) - Npgsql rejects a non-UTC
+        // DateTimeOffset for a "timestamp with time zone" column, so the PUT handler must normalise
+        // it back to UTC before persisting rather than writing the round-tripped offset straight through.
+        ExportLoaderTaskRequest request = NewRequest(
+            Guid.NewGuid().ToString(),
+            await CreateDataSourceIdAsync(),
+            since: DateTimeOffset.UtcNow.AddDays(-1));
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
+
+        HttpResponseMessage getResponse = await HttpClient.GetAsync($"/ExportLoaderTask/{created.Id}");
+        string unmodifiedGetBody = await getResponse.Content.ReadAsStringAsync();
+        // The service default time zone (+10:00 in test config) must actually be present on the
+        // wire here - otherwise this test would not be exercising the offset-normalisation bug.
+        Assert.Contains("+10:00", unmodifiedGetBody);
+
+        HttpResponseMessage putResponse = await HttpClient.PutAsync(
+            $"/ExportLoaderTask/{created.Id}",
+            new StringContent(unmodifiedGetBody, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
+        ExportLoaderTaskResponse? updated = await putResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions);
+        Assert.NotNull(updated);
+        Assert.Equal(created.DisplayName, updated!.DisplayName);
+        Assert.Equal(created.Code, updated.Code);
+        Assert.Equal(created.DataSourceId, updated.DataSourceId);
+        // Postgres timestamptz truncates to microsecond precision, so the in-memory Since carried on
+        // created (never round-tripped through the DB) can be a fraction of a microsecond ahead of
+        // updated's (read back after the PUT's SaveChanges) - assert the round-trip preserved the
+        // same instant rather than bit-for-bit equality.
+        Assert.NotNull(updated.Parameter.Since);
+        Assert.True((created.Parameter.Since!.Value - updated.Parameter.Since!.Value).Duration() < TimeSpan.FromMilliseconds(1));
+    }
+
+    [Fact]
     public async Task Update_NonExistentExportLoaderTask_Returns404()
     {
-        ExportLoaderTaskRequest updateRequest = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
+        ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
+        HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
+        ExportLoaderTaskUpdateRequest updateRequest = AsUpdateRequest(created);
 
-        HttpResponseMessage response = await HttpClient.PutAsJsonAsync("/ExportLoaderTask/999999", updateRequest);
+        HttpResponseMessage response = await HttpClient.PutAsJsonAsync("/ExportLoaderTask/999999", updateRequest, JsonOptions);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -198,7 +314,7 @@ public class ExportLoaderTaskCrudTests(IntegrationTestFixture fixture) : Integra
     {
         ExportLoaderTaskRequest request = NewRequest(Guid.NewGuid().ToString(), await CreateDataSourceIdAsync());
         HttpResponseMessage createResponse = await HttpClient.PostAsJsonAsync("/ExportLoaderTask", request);
-        ExportLoaderTask created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTask>())!;
+        ExportLoaderTaskResponse created = (await createResponse.Content.ReadFromJsonAsync<ExportLoaderTaskResponse>(JsonOptions))!;
 
         HttpResponseMessage deleteResponse = await HttpClient.DeleteAsync($"/ExportLoaderTask/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);

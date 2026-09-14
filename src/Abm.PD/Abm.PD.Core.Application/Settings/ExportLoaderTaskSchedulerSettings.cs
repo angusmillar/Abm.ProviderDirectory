@@ -10,7 +10,7 @@ public record ExportLoaderTaskSchedulerSettings
     /// How often the scheduler checks for due tasks. Independent of any task's own TriggerEvery - this
     /// is the poll granularity, not a schedule.
     /// </summary>
-    [Range(typeof(TimeSpan), "00:00:01", "23:59:59")]
+    [Range(typeof(TimeSpan), "00:00:00", "23:59:59")]
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

@@ -9,7 +9,7 @@ public record ExportLoaderTaskRequest(
     TaskStateId State,
     string? StateReason,
     TimeSpan TriggerEvery,
-    DateTime? ToStartAtUtc,
-    DateTime? ToEndAtUtc,
+    DateTimeOffset? ToStartAtUtc,
+    DateTimeOffset? ToEndAtUtc,
     int DataSourceId,
     ExportLoaderTaskParameterRequest Parameter);

@@ -1,8 +1,10 @@
+using Abm.Core.Time;
 using Abm.PD.Core.Api.Contracts;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Abm.PD.Core.Api.Endpoints;
 
@@ -25,42 +27,58 @@ public static class ExportLoaderTaskEndpoints
         [FromQuery(Name = "last-start-from")] DateTime? lastStartFrom,
         [FromQuery(Name = "last-start-to")] DateTime? lastStartTo,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
-        if (code is null && state is null && lastStartFrom is null && lastStartTo is null)
-        {
-            return Results.Ok(await exportLoaderTaskRepository.GetAllAsync(cancellationToken));
-        }
+        IReadOnlyList<ExportLoaderTask> exportLoaderTaskList = code is null && state is null && lastStartFrom is null && lastStartTo is null
+            ? await exportLoaderTaskRepository.GetAllAsync(cancellationToken)
+            : await exportLoaderTaskRepository.SearchAsync(
+                code: code,
+                state: state,
+                lastStartFrom: lastStartFrom,
+                lastStartTo: lastStartTo,
+                cancellationToken: cancellationToken);
 
-        return Results.Ok(await exportLoaderTaskRepository.SearchAsync(
-            code: code,
-            state: state,
-            lastStartFrom: lastStartFrom,
-            lastStartTo: lastStartTo,
-            cancellationToken: cancellationToken));
+        return Results.Ok(exportLoaderTaskList.Select(
+            x => ExportLoaderTaskResponse.FromEntity(x, timeSettings.Value.ServiceDefaultTimeZone)));
     }
 
     private static async Task<IResult> GetById(
         int id,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
         ExportLoaderTask? exportLoaderTask = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
         return exportLoaderTask is null
             ? Results.NotFound()
-            : Results.Ok(exportLoaderTask);
+            : Results.Ok(ExportLoaderTaskResponse.FromEntity(exportLoaderTask, timeSettings.Value.ServiceDefaultTimeZone));
     }
 
     private static async Task<IResult> Create(
         ExportLoaderTaskRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
         IDataSourceRepository dataSourceRepository,
+        IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
         DataSource? dataSource = await dataSourceRepository.GetByIdAsync(request.DataSourceId, cancellationToken);
         if (dataSource is null)
         {
             return Results.BadRequest($"DataSource {request.DataSourceId} does not exist");
+        }
+
+        // Code carries a unique index at the database level - checking first turns what would
+        // otherwise surface as an unhandled DbUpdateException on SaveChangesAsync into a clear 400.
+        IReadOnlyList<ExportLoaderTask> existingWithCode = await exportLoaderTaskRepository.SearchAsync(
+            code: request.Code,
+            state: null,
+            lastStartFrom: null,
+            lastStartTo: null,
+            cancellationToken: cancellationToken);
+        if (existingWithCode.Count > 0)
+        {
+            return Results.BadRequest($"ExportLoaderTask with Code '{request.Code}' already exists");
         }
 
         DateTime nowUtc = DateTime.UtcNow;
@@ -72,8 +90,12 @@ public static class ExportLoaderTaskEndpoints
             State = request.State,
             StateReason = request.StateReason,
             TriggerEvery = request.TriggerEvery,
-            ToStartAtUtc = request.ToStartAtUtc,
-            ToEndAtUtc = request.ToEndAtUtc,
+            // DateTimeOffset.UtcDateTime always yields Kind=Utc regardless of the offset the caller
+            // sent - Npgsql rejects a DateTime with Kind=Local or Unspecified for a "timestamp with
+            // time zone" column, which a plain DateTime? here could otherwise carry depending on how
+            // the incoming JSON's offset was parsed.
+            ToStartAtUtc = request.ToStartAtUtc?.UtcDateTime,
+            ToEndAtUtc = request.ToEndAtUtc?.UtcDateTime,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
             LastStart = null,
@@ -83,55 +105,66 @@ public static class ExportLoaderTaskEndpoints
             Parameter = new ExportParameter
             {
                 Type = request.Parameter.Type,
-                Since = request.Parameter.Since,
+                // Npgsql only accepts DateTimeOffset.Offset == 0 for a "timestamp with time zone"
+                // column - the caller may have sent any offset, so normalise to UTC before storing.
+                Since = request.Parameter.Since?.ToUniversalTime(),
                 TypeFilterList = request.Parameter.TypeFilterList,
             },
         };
         exportLoaderTask = await exportLoaderTaskRepository.AddAsync(exportLoaderTask, cancellationToken);
-        return Results.Created($"/ExportLoaderTask/{exportLoaderTask.Id}", exportLoaderTask);
+        return Results.Created(
+            $"/ExportLoaderTask/{exportLoaderTask.Id}",
+            ExportLoaderTaskResponse.FromEntity(exportLoaderTask, timeSettings.Value.ServiceDefaultTimeZone));
     }
 
     private static async Task<IResult> Update(
         int id,
-        ExportLoaderTaskRequest request,
+        ExportLoaderTaskUpdateRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
-        IDataSourceRepository dataSourceRepository,
+        IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
-        // The repository's UpdateAsync copies LastStart/LastEnd/CreatedUtc straight from whatever
-        // entity it is given, so the current row is fetched first to carry those loader-owned fields
-        // through unchanged rather than the request DTO (which deliberately has no place for them)
-        // wiping them out.
+        // Code, DataSourceId and DataSource are deliberately absent from ExportLoaderTaskUpdateRequest
+        // - they are immutable after creation, not editable via update - so the existing row is fetched
+        // first and only the editable fields below are copied across.
         ExportLoaderTask? existing = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
             return Results.NotFound();
         }
-
-        DataSource? dataSource = await dataSourceRepository.GetByIdAsync(request.DataSourceId, cancellationToken);
-        if (dataSource is null)
+        
+        if (existing.State == TaskStateId.InProgress)
         {
-            return Results.BadRequest($"DataSource {request.DataSourceId} does not exist");
+            return Results.BadRequest($"The ExportLoaderTask State={existing.State}', " +
+                                      $"can not modify a task while {nameof(TaskStateId.InProgress)} ");
         }
 
-        existing.Code = request.Code;
         existing.DisplayName = request.DisplayName;
         existing.Description = request.Description;
         existing.State = request.State;
         existing.StateReason = request.StateReason;
         existing.TriggerEvery = request.TriggerEvery;
-        existing.ToStartAtUtc = request.ToStartAtUtc;
-        existing.ToEndAtUtc = request.ToEndAtUtc;
+        existing.ToStartAtUtc = request.ToStartAtUtc?.UtcDateTime;
+        existing.ToEndAtUtc = request.ToEndAtUtc?.UtcDateTime;
         existing.UpdatedUtc = DateTime.UtcNow;
-        existing.DataSourceId = dataSource.Id;
         existing.Parameter.Type = request.Parameter.Type;
-        existing.Parameter.Since = request.Parameter.Since;
+        // Npgsql only accepts DateTimeOffset.Offset == 0 for a "timestamp with time zone" column -
+        // a round-tripped GET response carries ServiceDefaultTimeZone's offset (e.g. +10:00), so
+        // normalise back to UTC before storing.
+        existing.Parameter.Since = request.Parameter.Since?.ToUniversalTime();
         existing.Parameter.TypeFilterList = request.Parameter.TypeFilterList;
 
         ExportLoaderTask? updated = await exportLoaderTaskRepository.UpdateAsync(id, existing, cancellationToken);
-        return updated is null
-            ? Results.NotFound()
-            : Results.Ok(updated);
+        if (updated is null)
+        {
+            return Results.NotFound();
+        }
+
+        // UpdateAsync's internal re-fetch doesn't Include the DataSource navigation, and DataSourceId
+        // never changes via update, so carry it over from the already-loaded `existing` rather than
+        // returning a response with a null DataSource.
+        updated.DataSource = existing.DataSource;
+        return Results.Ok(ExportLoaderTaskResponse.FromEntity(updated, timeSettings.Value.ServiceDefaultTimeZone));
     }
 
     private static async Task<IResult> Delete(
