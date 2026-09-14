@@ -1,7 +1,7 @@
 using Abm.PD.BulkExport;
-using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.Core.Application.Loader;
+using Abm.PD.Core.Domain.Entities;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +13,7 @@ public class ExportTaskTaskRunner(
     ISourceResourceLoader sourceResourceLoader) : IExportTaskRunner
 {
     public async Task<SourceResourceLoadResult> Run(
-        Domain.Entities.ExportTask exportTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken)
     {
         Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);
