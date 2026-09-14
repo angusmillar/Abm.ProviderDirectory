@@ -8,6 +8,7 @@ using Abm.PD.Core.Application.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Scalar.AspNetCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,8 @@ builder.Services.AddOptions<DatabaseSettings>()
 builder.Services.AddCoreRepositoryServices(builder.Configuration);
 builder.Services.AddFhirBulkExportServices(builder.Configuration);
 builder.Services.AddCoreProviderDirectoryServices(builder.Configuration);
+
+builder.Services.AddOpenApi();
 
 builder.Services.AddHealthChecks()
     // Resolved inside this factory, not eagerly above: the factory runs when the health check
@@ -62,6 +65,9 @@ if (databaseSettings.RunMigrationsOnStartup)
     ProviderDirectoryDbContext dbContext = scope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
     await dbContext.Database.MigrateAsync();
 }
+
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.MapResourceEndpoints();
 app.MapDataSourceEndpoints();
