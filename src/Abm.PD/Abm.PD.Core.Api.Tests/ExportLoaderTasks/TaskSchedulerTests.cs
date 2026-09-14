@@ -6,6 +6,7 @@ using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.Extensions.DependencyInjection;
+using TaskScheduler = Abm.PD.Core.Application.TaskScheduler.TaskScheduler;
 
 namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
 
@@ -46,10 +47,10 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
-        exportRunner.Behaviour = (_, _) => Task.FromResult(
+        exportTaskRunner.Behaviour = (_, _) => Task.FromResult(
             new SourceResourceLoadResult(SubmittedCount: 5, CommittedCount: 4, FailedCount: 1, BatchCount: 1, RetainedFailures: []));
 
         await scheduler.DoWork(CancellationToken.None);
@@ -66,11 +67,11 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
         ExportTask? receivedTask = null;
-        exportRunner.Behaviour = (task, _) =>
+        exportTaskRunner.Behaviour = (task, _) =>
         {
             receivedTask = task;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -88,10 +89,10 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
-        exportRunner.Behaviour = (_, _) => throw new InvalidOperationException("SIT server unreachable");
+        exportTaskRunner.Behaviour = (_, _) => throw new InvalidOperationException("SIT server unreachable");
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -107,12 +108,12 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(
             NewTask(lastStart: DateTime.UtcNow, triggerEvery: TimeSpan.FromHours(1)), CancellationToken.None);
         bool wasCalled = false;
-        exportRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -130,13 +131,13 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         // CoreApiWebApplicationFactory sets StaleInProgressAfter to 5 minutes for tests - 10 minutes
         // stale is comfortably past that without needing to wait in real time.
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.InProgress, lastStart: DateTime.UtcNow.AddMinutes(-10)), CancellationToken.None);
-        exportRunner.Behaviour = (_, _) => Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
+        exportTaskRunner.Behaviour = (_, _) => Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -152,14 +153,14 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         // CoreApiWebApplicationFactory leaves FailureAttemptCount at its default of 3, so a Failed
         // task carrying FailureCount 3 is still Due.
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.Failed, failureCount: 3), CancellationToken.None);
         bool wasCalled = false;
-        exportRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -178,12 +179,12 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
-        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
-        Abm.PD.Core.Application.TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<Abm.PD.Core.Application.TaskScheduler>();
+        ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
+        TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.Failed, failureCount: 4), CancellationToken.None);
         bool wasCalled = false;
-        exportRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));

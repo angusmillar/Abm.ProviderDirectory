@@ -1,4 +1,5 @@
 using Abm.Core.HostedService;
+using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.Settings;
 using Microsoft.Extensions.Configuration;
@@ -30,12 +31,12 @@ public static class ServiceCollectionExtension
             .GetSection(TaskSchedulerSettings.SectionName)
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
 
-        services.AddScoped<IExportRunner, ExportRunner>();
+        services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskTaskRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
         // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds
         // the IHostedService that ticks it - no separate AddScoped<TaskScheduler>() call.
-        services.AddTimedHostedService<TaskScheduler>(opt =>
+        services.AddTimedHostedService<TaskScheduler.TaskScheduler>(opt =>
         {
             opt.TriggersEvery = schedulerSettings.PollInterval;
         });

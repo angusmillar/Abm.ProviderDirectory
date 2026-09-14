@@ -1,4 +1,5 @@
 using Abm.PD.Core.Application;
+using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Domain.Entities;
 
@@ -10,7 +11,7 @@ namespace Abm.PD.Core.Api.Tests.TestDoubles;
 /// Registered as a singleton - tests within the shared IntegrationTestCollection run sequentially, so
 /// setting Behaviour per test is safe.
 /// </summary>
-public sealed class ConfigurableExportRunner : IExportRunner
+public sealed class ConfigurableExportTaskRunner : IExportTaskRunner
 {
     public Func<ExportTask, CancellationToken, Task<SourceResourceLoadResult>>? Behaviour { get; set; }
 
@@ -21,7 +22,7 @@ public sealed class ConfigurableExportRunner : IExportRunner
         if (Behaviour is null)
         {
             throw new InvalidOperationException(
-                $"{nameof(ConfigurableExportRunner)}.{nameof(Behaviour)} was not set before the scheduler ran.");
+                $"{nameof(ConfigurableExportTaskRunner)}.{nameof(Behaviour)} was not set before the scheduler ran.");
         }
 
         return Behaviour(exportTask, cancellationToken);

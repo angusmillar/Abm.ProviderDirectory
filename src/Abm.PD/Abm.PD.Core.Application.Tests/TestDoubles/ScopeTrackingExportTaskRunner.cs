@@ -1,3 +1,4 @@
+using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Domain.Entities;
 
@@ -5,7 +6,7 @@ namespace Abm.PD.Core.Application.Tests.TestDoubles;
 
 // Registered Scoped in the test's ServiceCollection so a fresh InstanceId is minted once per
 // CreateScope() call - exactly the behaviour Finding 1's regression test is asserting on.
-public sealed class ScopeTrackingExportRunner(List<(int TaskId, Guid InstanceId)> calls) : IExportRunner
+public sealed class ScopeTrackingExportTaskRunner(List<(int TaskId, Guid InstanceId)> calls) : IExportTaskRunner
 {
     private readonly Guid InstanceId = Guid.NewGuid();
 

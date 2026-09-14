@@ -1,7 +1,7 @@
 ﻿using Abm.PD.Core.Domain.Entities;
 using Hl7.Fhir.Model;
 
-namespace Abm.PD.Core.Application;
+namespace Abm.PD.Core.Application.ExportTaskRunner;
 
 public static class FhirExportQuery
 {

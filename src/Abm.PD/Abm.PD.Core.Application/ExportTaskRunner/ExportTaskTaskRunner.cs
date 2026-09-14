@@ -2,20 +2,18 @@ using Abm.PD.BulkExport;
 using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.Core.Application.Loader;
-using Abm.PD.Core.Domain.Entities;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
-using Task = System.Threading.Tasks.Task;
 
-namespace Abm.PD.Core.Application;
+namespace Abm.PD.Core.Application.ExportTaskRunner;
 
-public class ExportRunner(
-    ILogger<ExportRunner> logger,
+public class ExportTaskTaskRunner(
+    ILogger<ExportTaskTaskRunner> logger,
     IFhirExporter fhirExporter,
-    ISourceResourceLoader sourceResourceLoader) : IExportRunner
+    ISourceResourceLoader sourceResourceLoader) : IExportTaskRunner
 {
     public async Task<SourceResourceLoadResult> Run(
-        ExportTask exportTask,
+        Domain.Entities.ExportTask exportTask,
         CancellationToken cancellationToken)
     {
         Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);

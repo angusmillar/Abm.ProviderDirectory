@@ -1,4 +1,5 @@
 using Abm.Core.Time;
+using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Application.Tests.TestDoubles;
 using Abm.PD.Core.Domain.Entities;
@@ -67,18 +68,18 @@ public class TaskSchedulerTests
 
     private static ServiceProvider BuildProvider(
         List<ExportTask> seededTasks,
-        IExportRunner exportRunner,
+        IExportTaskRunner exportTaskRunner,
         int failureAttemptCount = 3)
     {
         ServiceCollection services = new();
-        services.AddSingleton<IExportRunner>(exportRunner);
+        services.AddSingleton<IExportTaskRunner>(exportTaskRunner);
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
-        services.AddSingleton<ILogger<TaskScheduler>>(NullLogger<TaskScheduler>.Instance);
-        services.AddScoped<TaskScheduler>();
+        services.AddSingleton<ILogger<TaskScheduler.TaskScheduler>>(NullLogger<TaskScheduler.TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler.TaskScheduler>();
         return services.BuildServiceProvider();
     }
 
@@ -96,20 +97,20 @@ public class TaskSchedulerTests
 
         ServiceCollection services = new();
         services.AddSingleton(calls);
-        services.AddScoped<IExportRunner, ScopeTrackingExportRunner>();
+        services.AddScoped<IExportTaskRunner, ScopeTrackingExportTaskRunner>();
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));
-        services.AddSingleton<ILogger<TaskScheduler>>(NullLogger<TaskScheduler>.Instance);
-        services.AddScoped<TaskScheduler>();
+        services.AddSingleton<ILogger<TaskScheduler.TaskScheduler>>(NullLogger<TaskScheduler.TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler.TaskScheduler>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
         // Simulates the tick engine's own per-tick outer scope - the scheduler itself is resolved
         // once per tick, exactly as ITimedHostedService driving it would do.
         using IServiceScope tickScope = provider.CreateScope();
-        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -121,9 +122,9 @@ public class TaskSchedulerTests
     public async Task DoWork_RunnerThrows_IncrementsFailureCountAndSetsFailed()
     {
         List<ExportTask> seededTasks = [NewTask(1, "task-one")];
-        await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportRunner());
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportTaskRunner());
         using IServiceScope tickScope = provider.CreateScope();
-        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -135,9 +136,9 @@ public class TaskSchedulerTests
     public async Task DoWork_RunnerSucceeds_ResetsFailureCountToZero()
     {
         List<ExportTask> seededTasks = [NewTask(1, "task-one", failureCount: 2)];
-        await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportRunner([]));
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportTaskRunner([]));
         using IServiceScope tickScope = provider.CreateScope();
-        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -152,9 +153,9 @@ public class TaskSchedulerTests
         List<ExportTask> seededTasks =
             [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 3)];
         await using ServiceProvider provider = BuildProvider(
-            seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
+            seededTasks, new ScopeTrackingExportTaskRunner(calls), failureAttemptCount: 3);
         using IServiceScope tickScope = provider.CreateScope();
-        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -168,9 +169,9 @@ public class TaskSchedulerTests
         List<ExportTask> seededTasks =
             [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 4)];
         await using ServiceProvider provider = BuildProvider(
-            seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
+            seededTasks, new ScopeTrackingExportTaskRunner(calls), failureAttemptCount: 3);
         using IServiceScope tickScope = provider.CreateScope();
-        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 

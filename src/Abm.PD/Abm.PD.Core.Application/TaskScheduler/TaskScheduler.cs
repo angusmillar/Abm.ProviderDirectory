@@ -1,5 +1,6 @@
 using Abm.Core.HostedService;
 using Abm.Core.Time;
+using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Domain.Entities;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Abm.PD.Core.Application;
+namespace Abm.PD.Core.Application.TaskScheduler;
 
 public class TaskScheduler(
     ITaskRepository taskRepository,
@@ -69,7 +70,7 @@ public class TaskScheduler(
             // (as constructor injection into this class would do) made every task after the first fail
             // with "session already completed".
             using IServiceScope taskScope = serviceScopeFactory.CreateScope();
-            IExportRunner exportRunner = taskScope.ServiceProvider.GetRequiredService<IExportRunner>();
+            IExportTaskRunner exportTaskRunner = taskScope.ServiceProvider.GetRequiredService<IExportTaskRunner>();
 
             try
             {
@@ -79,7 +80,7 @@ public class TaskScheduler(
                 ExportTask exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
                     ?? throw new InvalidOperationException($"ExportTask {task.Id} was claimed but no longer exists");
 
-                SourceResourceLoadResult result = await exportRunner.Run(exportTask, cancellationToken);
+                SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, cancellationToken);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
