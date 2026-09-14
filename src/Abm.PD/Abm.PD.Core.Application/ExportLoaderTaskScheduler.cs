@@ -26,8 +26,15 @@ public class ExportLoaderTaskScheduler(
         await repository.ReapStaleInProgressAsync(
             nowUtc - settings.Value.StaleInProgressAfter, cancellationToken);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(nowUtc, cancellationToken);
-        foreach (ExportLoaderTask task in due)
+        IReadOnlyList<ExportLoaderTask> dueExportLoaderTaskList = await repository.FindDueAsync(nowUtc, cancellationToken);
+        if (dueExportLoaderTaskList.Count == 0)
+        {
+            logger.LogInformation("{Service} for {Instance} found no tasks due to run", 
+                nameof(ITimedHostedService), 
+                nameof(ExportLoaderTaskScheduler));    
+        }
+        
+        foreach (ExportLoaderTask task in dueExportLoaderTaskList)
         {
             if (!await repository.TryClaimAsync(task.Id, nowUtc, cancellationToken))
             {
