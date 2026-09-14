@@ -28,11 +28,9 @@ public class ExportTaskTaskRunner(
             "JobId {JobId} ExportTask {TaskCode} download manifest received, persisting to source store",
             fhirExporter.JobId,
             exportTask.Code);
-
-        IAsyncEnumerable<FhirBulkExportResource> streamedExportFileList = fhirExporter.StreamedExportFileList(cancellationToken);
-
+        
         return await sourceResourceLoader.Load(
-            exportResources: streamedExportFileList,
+            exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
             jobId: fhirExporter.JobId,
             dataSource: exportTask.DataSource,
             cancellationToken: cancellationToken);
