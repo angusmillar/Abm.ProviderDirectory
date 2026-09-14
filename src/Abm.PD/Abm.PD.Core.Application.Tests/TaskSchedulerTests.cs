@@ -12,7 +12,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Abm.PD.Core.Application.Tests;
 
-public class ExportLoaderTaskSchedulerTests
+public class TaskSchedulerTests
 {
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
@@ -71,10 +71,10 @@ public class ExportLoaderTaskSchedulerTests
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
-        services.AddSingleton<IOptions<ExportLoaderTaskSchedulerSettings>>(
-            Options.Create(new ExportLoaderTaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
-        services.AddSingleton<ILogger<ExportLoaderTaskScheduler>>(NullLogger<ExportLoaderTaskScheduler>.Instance);
-        services.AddScoped<ExportLoaderTaskScheduler>();
+        services.AddSingleton<IOptions<TaskSchedulerSettings>>(
+            Options.Create(new TaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
+        services.AddSingleton<ILogger<TaskScheduler>>(NullLogger<TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler>();
         return services.BuildServiceProvider();
     }
 
@@ -90,16 +90,16 @@ public class ExportLoaderTaskSchedulerTests
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
-        services.AddSingleton<IOptions<ExportLoaderTaskSchedulerSettings>>(
-            Options.Create(new ExportLoaderTaskSchedulerSettings()));
-        services.AddSingleton<ILogger<ExportLoaderTaskScheduler>>(NullLogger<ExportLoaderTaskScheduler>.Instance);
-        services.AddScoped<ExportLoaderTaskScheduler>();
+        services.AddSingleton<IOptions<TaskSchedulerSettings>>(
+            Options.Create(new TaskSchedulerSettings()));
+        services.AddSingleton<ILogger<TaskScheduler>>(NullLogger<TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
         // Simulates the tick engine's own per-tick outer scope - the scheduler itself is resolved
         // once per tick, exactly as ITimedHostedService driving it would do.
         using IServiceScope tickScope = provider.CreateScope();
-        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -113,7 +113,7 @@ public class ExportLoaderTaskSchedulerTests
         List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one")];
         await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportRunner());
         using IServiceScope tickScope = provider.CreateScope();
-        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -127,7 +127,7 @@ public class ExportLoaderTaskSchedulerTests
         List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one", failureCount: 2)];
         await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportRunner([]));
         using IServiceScope tickScope = provider.CreateScope();
-        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -144,7 +144,7 @@ public class ExportLoaderTaskSchedulerTests
         await using ServiceProvider provider = BuildProvider(
             seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
         using IServiceScope tickScope = provider.CreateScope();
-        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -160,7 +160,7 @@ public class ExportLoaderTaskSchedulerTests
         await using ServiceProvider provider = BuildProvider(
             seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
         using IServiceScope tickScope = provider.CreateScope();
-        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
 
         await scheduler.DoWork(CancellationToken.None);
 

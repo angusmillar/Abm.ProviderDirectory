@@ -4,7 +4,7 @@ using Abm.PD.Core.Domain.Repositories;
 
 namespace Abm.PD.Core.Application.Tests.TestDoubles;
 
-// Hand rolled, in-memory fake for ExportLoaderTaskScheduler tests that need a real (if simplistic)
+// Hand rolled, in-memory fake for TaskScheduler tests that need a real (if simplistic)
 // FindDueAsync/TryClaimAsync/RecordOutcomeAsync/ReapStaleInProgressAsync - no claim atomicity is
 // modelled, this is single-threaded test code driving the scheduler directly.
 public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskRepository

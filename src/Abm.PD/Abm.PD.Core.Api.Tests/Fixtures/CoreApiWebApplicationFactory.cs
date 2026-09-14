@@ -29,15 +29,15 @@ public class CoreApiWebApplicationFactory(string connectionString) : WebApplicat
                 // Quiet logging in tests.
                 ["Serilog:MinimumLevel:Default"] = "Warning",
 
-                // The longest PollInterval ExportLoaderTaskSchedulerSettings' own validation allows
+                // The longest PollInterval TaskSchedulerSettings' own validation allows
                 // (00:10:00) - still vastly longer than any test run, so the scheduler's own background
                 // timer never ticks during a test run. IntegrationTestFixture builds one factory for the
                 // whole test collection's lifetime, so without this the real 30-second production default
                 // would keep firing in the background across every other test in the suite.
-                ["ExportLoaderTaskScheduler:PollInterval"] = "00:10:00",
+                ["TaskScheduler:PollInterval"] = "00:10:00",
                 // The minimum this repo's settings validation allows - short enough that a reaped-task
                 // test only needs a LastStart a few minutes in the past, not the 2-hour production default.
-                ["ExportLoaderTaskScheduler:StaleInProgressAfter"] = "00:05:00",
+                ["TaskScheduler:StaleInProgressAfter"] = "00:05:00",
             });
         });
 

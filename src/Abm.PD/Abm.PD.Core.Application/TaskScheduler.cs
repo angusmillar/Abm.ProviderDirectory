@@ -11,13 +11,13 @@ using Microsoft.Extensions.Options;
 
 namespace Abm.PD.Core.Application;
 
-public class ExportLoaderTaskScheduler(
+public class TaskScheduler(
     ITaskRepository taskRepository,
     IExportLoaderTaskRepository exportLoaderTaskRepository,
     IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
-    IOptions<ExportLoaderTaskSchedulerSettings> settings,
-    ILogger<ExportLoaderTaskScheduler> logger) : ITimedHostedService
+    IOptions<TaskSchedulerSettings> settings,
+    ILogger<TaskScheduler> logger) : ITimedHostedService
 {
     public async Task DoWork(
         CancellationToken cancellationToken)
@@ -33,7 +33,7 @@ public class ExportLoaderTaskScheduler(
         {
             logger.LogInformation("{Service} for {Instance} found no tasks due to run",
                 nameof(ITimedHostedService),
-                nameof(ExportLoaderTaskScheduler));
+                nameof(TaskScheduler));
         }
 
         foreach (TaskBase task in dueTaskList)

@@ -12,8 +12,8 @@ public static class ServiceCollectionExtension
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddOptions<ExportLoaderTaskSchedulerSettings>()
-            .Bind(configuration.GetSection(ExportLoaderTaskSchedulerSettings.SectionName))
+        services.AddOptions<TaskSchedulerSettings>()
+            .Bind(configuration.GetSection(TaskSchedulerSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -26,16 +26,16 @@ public static class ServiceCollectionExtension
         // host is built, so it cannot resolve IOptions<T> from the container the way the settings
         // above are read once the app starts - PollInterval is read straight off configuration here
         // instead, landing on the same bound value either way.
-        ExportLoaderTaskSchedulerSettings schedulerSettings = configuration
-            .GetSection(ExportLoaderTaskSchedulerSettings.SectionName)
-            .Get<ExportLoaderTaskSchedulerSettings>() ?? new ExportLoaderTaskSchedulerSettings();
+        TaskSchedulerSettings schedulerSettings = configuration
+            .GetSection(TaskSchedulerSettings.SectionName)
+            .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
 
         services.AddScoped<IExportRunner, ExportRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
-        // AddTimedHostedService<T> already registers T (ExportLoaderTaskScheduler) as Scoped and adds
-        // the IHostedService that ticks it - no separate AddScoped<ExportLoaderTaskScheduler>() call.
-        services.AddTimedHostedService<ExportLoaderTaskScheduler>(opt =>
+        // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds
+        // the IHostedService that ticks it - no separate AddScoped<TaskScheduler>() call.
+        services.AddTimedHostedService<TaskScheduler>(opt =>
         {
             opt.TriggersEvery = schedulerSettings.PollInterval;
         });

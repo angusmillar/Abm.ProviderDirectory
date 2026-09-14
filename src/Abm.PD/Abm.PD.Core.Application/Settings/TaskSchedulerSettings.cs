@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Abm.PD.Core.Application.Settings;
 
-public record ExportLoaderTaskSchedulerSettings
+public record TaskSchedulerSettings
 {
-    public const string SectionName = "ExportLoaderTaskScheduler";
+    public const string SectionName = "TaskScheduler";
 
     /// <summary>
     /// How often the scheduler checks for due tasks. Independent of any task's own TriggerEvery - this

@@ -46,7 +46,7 @@ public abstract class TaskBase
     public required DateTime? LastEnd { get; set; }
 
     // Counts consecutive failures since the last Completed run - reset to zero on success. Compared
-    // against ExportLoaderTaskSchedulerSettings.FailureAttemptCount to decide whether a Failed task
+    // against TaskSchedulerSettings.FailureAttemptCount to decide whether a Failed task
     // is still Due.
     public int FailureCount { get; set; }
 }
