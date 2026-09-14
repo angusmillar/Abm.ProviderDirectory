@@ -291,7 +291,7 @@ namespace Abm.PD.Core.Repository.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportLoaderTask", b =>
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportTask", b =>
                 {
                     b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
 
@@ -317,7 +317,7 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.Navigation("DataSource");
                 });
 
-            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportLoaderTask", b =>
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.ExportTask", b =>
                 {
                     b.HasOne("Abm.PD.Core.Domain.Entities.DataSource", "DataSource")
                         .WithMany()
@@ -328,9 +328,9 @@ namespace Abm.PD.Core.Repository.Migrations
 
                     b.OwnsOne("Abm.PD.Core.Domain.Entities.ExportParameter", "Parameter", b1 =>
                         {
-                            b1.Property<int>("ExportLoaderTaskId")
+                            b1.Property<int>("ExportTaskId")
                                 .HasColumnType("integer")
-                                .HasColumnName("export_loader_task_id");
+                                .HasColumnName("export_task_id");
 
                             b1.Property<DateTimeOffset?>("Since")
                                 .HasColumnType("timestamp with time zone")
@@ -346,14 +346,14 @@ namespace Abm.PD.Core.Repository.Migrations
                                 .HasColumnType("text[]")
                                 .HasColumnName("type_filter_list");
 
-                            b1.HasKey("ExportLoaderTaskId")
-                                .HasName("pk_export_loader_task_parameter");
+                            b1.HasKey("ExportTaskId")
+                                .HasName("pk_export_task_parameter");
 
-                            b1.ToTable("export_loader_task_parameter", (string)null);
+                            b1.ToTable("export_task_parameter", (string)null);
 
                             b1.WithOwner()
-                                .HasForeignKey("ExportLoaderTaskId")
-                                .HasConstraintName("fk_export_loader_task_parameter_task");
+                                .HasForeignKey("ExportTaskId")
+                                .HasConstraintName("fk_export_task_parameter_task");
                         });
 
                     b.Navigation("DataSource");

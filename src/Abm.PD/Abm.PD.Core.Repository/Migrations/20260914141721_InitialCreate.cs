@@ -68,6 +68,32 @@ namespace Abm.PD.Core.Repository.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "source_resource",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    job_id = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    resource_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    resource_id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    resource_last_updated = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    data_source_id = table.Column<int>(type: "integer", nullable: false),
+                    resource = table.Column<string>(type: "jsonb", nullable: false),
+                    created_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_source_resource", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_source_resource_data_source_data_source_id",
+                        column: x => x.data_source_id,
+                        principalTable: "data_source",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "task",
                 columns: table => new
                 {
@@ -86,6 +112,7 @@ namespace Abm.PD.Core.Repository.Migrations
                     updated_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     last_start = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     last_end = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    failure_count = table.Column<int>(type: "integer", nullable: false),
                     data_source_id = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
@@ -100,20 +127,20 @@ namespace Abm.PD.Core.Repository.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "export_loader_task_parameter",
+                name: "export_task_parameter",
                 columns: table => new
                 {
-                    export_loader_task_id = table.Column<int>(type: "integer", nullable: false),
+                    export_task_id = table.Column<int>(type: "integer", nullable: false),
                     type = table.Column<string>(type: "text", nullable: false),
                     since = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     type_filter_list = table.Column<List<string>>(type: "text[]", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_export_loader_task_parameter", x => x.export_loader_task_id);
+                    table.PrimaryKey("pk_export_task_parameter", x => x.export_task_id);
                     table.ForeignKey(
-                        name: "fk_export_loader_task_parameter_task",
-                        column: x => x.export_loader_task_id,
+                        name: "fk_export_task_parameter_task",
+                        column: x => x.export_task_id,
                         principalTable: "task",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -143,6 +170,17 @@ namespace Abm.PD.Core.Repository.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ix_source_resource_data_source_id",
+                table: "source_resource",
+                column: "data_source_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_source_resource_job_id_resource_type_resource_id",
+                table: "source_resource",
+                columns: new[] { "job_id", "resource_type", "resource_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "ix_task_code",
                 table: "task",
                 column: "code",
@@ -158,10 +196,13 @@ namespace Abm.PD.Core.Repository.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "export_loader_task_parameter");
+                name: "export_task_parameter");
 
             migrationBuilder.DropTable(
                 name: "resource");
+
+            migrationBuilder.DropTable(
+                name: "source_resource");
 
             migrationBuilder.DropTable(
                 name: "task_state");
