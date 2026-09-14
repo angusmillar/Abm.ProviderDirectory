@@ -55,10 +55,13 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
 
     public Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
         DateTime nowUtc,
+        int failureAttemptCount,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ExportLoaderTask> due = tasks
-            .Where(t => t.State == TaskStateId.Ready || t.State == TaskStateId.Completed)
+            .Where(t => t.State == TaskStateId.Ready
+                        || t.State == TaskStateId.Completed
+                        || (t.State == TaskStateId.Failed && t.FailureCount <= failureAttemptCount))
             .Where(t => t.TriggerEvery > TimeSpan.Zero)
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
@@ -93,6 +96,7 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
         {
             task.State = TaskStateId.Failed;
             task.StateReason = "Reaped: exceeded expected run duration";
+            task.FailureCount++;
         }
 
         return Task.CompletedTask;
@@ -103,6 +107,7 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
         TaskStateId state,
         DateTime nowUtc,
         string? stateReason,
+        FailureCountUpdate failureCountUpdate,
         CancellationToken cancellationToken)
     {
         ExportLoaderTask? task = tasks.SingleOrDefault(t => t.Id == id);
@@ -111,6 +116,12 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
             task.State = state;
             task.LastEnd = nowUtc;
             task.StateReason = stateReason;
+            task.FailureCount = failureCountUpdate switch
+            {
+                FailureCountUpdate.Reset => 0,
+                FailureCountUpdate.Increment => task.FailureCount + 1,
+                _ => task.FailureCount
+            };
         }
 
         return Task.CompletedTask;

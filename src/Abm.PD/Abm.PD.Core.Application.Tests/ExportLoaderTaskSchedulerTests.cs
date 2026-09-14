@@ -19,7 +19,11 @@ public class ExportLoaderTaskSchedulerTests
         public DateTimeOffset Now => new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     }
 
-    private static ExportLoaderTask NewTask(int id, string code)
+    private static ExportLoaderTask NewTask(
+        int id,
+        string code,
+        TaskStateId state = TaskStateId.Ready,
+        int failureCount = 0)
     {
         return new ExportLoaderTask
         {
@@ -27,7 +31,7 @@ public class ExportLoaderTaskSchedulerTests
             Code = code,
             DisplayName = $"Task {code}",
             Description = null,
-            State = TaskStateId.Ready,
+            State = state,
             StateReason = null,
             TriggerEvery = TimeSpan.FromHours(24),
             ToStartAtUtc = null,
@@ -36,10 +40,27 @@ public class ExportLoaderTaskSchedulerTests
             UpdatedUtc = DateTime.UtcNow,
             LastStart = null,
             LastEnd = null,
+            FailureCount = failureCount,
             DataSourceId = 1,
             DataSource = new DataSource { Id = 1, Code = "test-data-source", DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
         };
+    }
+
+    private static ServiceProvider BuildProvider(
+        List<ExportLoaderTask> seededTasks,
+        IExportRunner exportRunner,
+        int failureAttemptCount = 3)
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IExportRunner>(exportRunner);
+        services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
+        services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
+        services.AddSingleton<IOptions<ExportLoaderTaskSchedulerSettings>>(
+            Options.Create(new ExportLoaderTaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
+        services.AddSingleton<ILogger<ExportLoaderTaskScheduler>>(NullLogger<ExportLoaderTaskScheduler>.Instance);
+        services.AddScoped<ExportLoaderTaskScheduler>();
+        return services.BuildServiceProvider();
     }
 
     // Regression test for the finding that ExportLoaderTaskScheduler used to constructor-inject
@@ -74,5 +95,65 @@ public class ExportLoaderTaskSchedulerTests
 
         Assert.Equal(2, calls.Count);
         Assert.NotEqual(calls[0].InstanceId, calls[1].InstanceId);
+    }
+
+    [Fact]
+    public async Task DoWork_RunnerThrows_IncrementsFailureCountAndSetsFailed()
+    {
+        List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one")];
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportRunner());
+        using IServiceScope tickScope = provider.CreateScope();
+        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal(TaskStateId.Failed, seededTasks[0].State);
+        Assert.Equal(1, seededTasks[0].FailureCount);
+    }
+
+    [Fact]
+    public async Task DoWork_RunnerSucceeds_ResetsFailureCountToZero()
+    {
+        List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one", failureCount: 2)];
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportRunner([]));
+        using IServiceScope tickScope = provider.CreateScope();
+        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal(TaskStateId.Completed, seededTasks[0].State);
+        Assert.Equal(0, seededTasks[0].FailureCount);
+    }
+
+    [Fact]
+    public async Task DoWork_FailedTaskWithinFailureAttemptCount_IsRun()
+    {
+        List<(int TaskId, Guid InstanceId)> calls = [];
+        List<ExportLoaderTask> seededTasks =
+            [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 3)];
+        await using ServiceProvider provider = BuildProvider(
+            seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
+        using IServiceScope tickScope = provider.CreateScope();
+        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Single(calls);
+    }
+
+    [Fact]
+    public async Task DoWork_FailedTaskExceedingFailureAttemptCount_IsNotRun()
+    {
+        List<(int TaskId, Guid InstanceId)> calls = [];
+        List<ExportLoaderTask> seededTasks =
+            [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 4)];
+        await using ServiceProvider provider = BuildProvider(
+            seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
+        using IServiceScope tickScope = provider.CreateScope();
+        ExportLoaderTaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Empty(calls);
     }
 }

@@ -129,12 +129,15 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
 
     public async Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
         DateTime nowUtc,
+        int failureAttemptCount,
         CancellationToken cancellationToken)
     {
         return await dbContext.ExportLoaderTasks
             .Include(t => t.DataSource)
             .AsNoTracking()
-            .Where(t => t.State == TaskStateId.Ready || t.State == TaskStateId.Completed)
+            .Where(t => t.State == TaskStateId.Ready
+                        || t.State == TaskStateId.Completed
+                        || (t.State == TaskStateId.Failed && t.FailureCount <= failureAttemptCount))
             .Where(t => t.TriggerEvery > TimeSpan.Zero)
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
@@ -148,7 +151,10 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         CancellationToken cancellationToken)
     {
         int rows = await dbContext.ExportLoaderTasks
-            .Where(t => t.Id == id && (t.State == TaskStateId.Ready || t.State == TaskStateId.Completed))
+            .Where(t => t.Id == id
+                        && (t.State == TaskStateId.Ready
+                            || t.State == TaskStateId.Completed
+                            || t.State == TaskStateId.Failed))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.State, TaskStateId.InProgress)
                 .SetProperty(t => t.LastStart, nowUtc)
@@ -164,7 +170,8 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
             .Where(t => t.State == TaskStateId.InProgress && t.LastStart != null && t.LastStart < olderThanUtc)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.State, TaskStateId.Failed)
-                .SetProperty(t => t.StateReason, "Reaped: exceeded expected run duration"), cancellationToken);
+                .SetProperty(t => t.StateReason, "Reaped: exceeded expected run duration")
+                .SetProperty(t => t.FailureCount, t => t.FailureCount + 1), cancellationToken);
     }
 
     public async Task RecordOutcomeAsync(
@@ -172,13 +179,39 @@ public class ExportLoaderTaskRepository(ProviderDirectoryDbContext dbContext) : 
         TaskStateId state,
         DateTime nowUtc,
         string? stateReason,
+        FailureCountUpdate failureCountUpdate,
         CancellationToken cancellationToken)
     {
-        await dbContext.ExportLoaderTasks
-            .Where(t => t.Id == id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.State, state)
-                .SetProperty(t => t.LastEnd, nowUtc)
-                .SetProperty(t => t.StateReason, stateReason), cancellationToken);
+        // ExecuteUpdateAsync takes an expression tree, so the FailureCount branch can't be factored
+        // out into a shared block-bodied lambda - each outcome gets its own single, atomic UPDATE.
+        switch (failureCountUpdate)
+        {
+            case FailureCountUpdate.Reset:
+                await dbContext.ExportLoaderTasks
+                    .Where(t => t.Id == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.State, state)
+                        .SetProperty(t => t.LastEnd, nowUtc)
+                        .SetProperty(t => t.StateReason, stateReason)
+                        .SetProperty(t => t.FailureCount, 0), cancellationToken);
+                break;
+            case FailureCountUpdate.Increment:
+                await dbContext.ExportLoaderTasks
+                    .Where(t => t.Id == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.State, state)
+                        .SetProperty(t => t.LastEnd, nowUtc)
+                        .SetProperty(t => t.StateReason, stateReason)
+                        .SetProperty(t => t.FailureCount, t => t.FailureCount + 1), cancellationToken);
+                break;
+            default:
+                await dbContext.ExportLoaderTasks
+                    .Where(t => t.Id == id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.State, state)
+                        .SetProperty(t => t.LastEnd, nowUtc)
+                        .SetProperty(t => t.StateReason, stateReason), cancellationToken);
+                break;
+        }
     }
 }

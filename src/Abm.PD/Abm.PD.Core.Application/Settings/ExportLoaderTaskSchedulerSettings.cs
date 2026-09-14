@@ -21,4 +21,12 @@ public record ExportLoaderTaskSchedulerSettings
     /// </summary>
     [Range(typeof(TimeSpan), "00:05:00", "24:00:00")]
     public TimeSpan StaleInProgressAfter { get; init; } = TimeSpan.FromHours(2);
+
+    /// <summary>
+    /// How many consecutive failures a Failed task may accumulate and still be found Due. A Failed
+    /// task is retried while its FailureCount is less than or equal to this value - the default of 3
+    /// allows up to 4 attempts in total before the task stops being picked up.
+    /// </summary>
+    [Range(0, int.MaxValue)]
+    public int FailureAttemptCount { get; init; } = 3;
 }

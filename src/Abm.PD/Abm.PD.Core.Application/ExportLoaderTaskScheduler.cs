@@ -26,7 +26,8 @@ public class ExportLoaderTaskScheduler(
         await repository.ReapStaleInProgressAsync(
             nowUtc - settings.Value.StaleInProgressAfter, cancellationToken);
 
-        IReadOnlyList<ExportLoaderTask> dueExportLoaderTaskList = await repository.FindDueAsync(nowUtc, cancellationToken);
+        IReadOnlyList<ExportLoaderTask> dueExportLoaderTaskList = await repository.FindDueAsync(
+            nowUtc, settings.Value.FailureAttemptCount, cancellationToken);
         if (dueExportLoaderTaskList.Count == 0)
         {
             logger.LogInformation("{Service} for {Instance} found no tasks due to run", 
@@ -59,6 +60,7 @@ public class ExportLoaderTaskScheduler(
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
                     $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
+                    FailureCountUpdate.Reset,
                     CancellationToken.None);
             }
             catch (Exception exception)
@@ -69,6 +71,7 @@ public class ExportLoaderTaskScheduler(
                     TaskStateId.Failed,
                     dateTimeProvider.Now.UtcDateTime,
                     exception.Message,
+                    FailureCountUpdate.Increment,
                     CancellationToken.None);
             }
         }

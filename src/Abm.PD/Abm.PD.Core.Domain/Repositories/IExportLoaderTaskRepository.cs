@@ -33,6 +33,7 @@ public interface IExportLoaderTaskRepository
 
     Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
         DateTime nowUtc,
+        int failureAttemptCount,
         CancellationToken cancellationToken);
 
     Task<bool> TryClaimAsync(
@@ -49,5 +50,6 @@ public interface IExportLoaderTaskRepository
         TaskStateId state,
         DateTime nowUtc,
         string? stateReason,
+        FailureCountUpdate failureCountUpdate,
         CancellationToken cancellationToken);
 }

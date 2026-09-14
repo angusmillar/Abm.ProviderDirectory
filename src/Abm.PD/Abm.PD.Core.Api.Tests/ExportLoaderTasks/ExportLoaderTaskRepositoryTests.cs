@@ -19,7 +19,8 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         TimeSpan? triggerEvery = null,
         DateTime? toStartAtUtc = null,
         DateTime? toEndAtUtc = null,
-        int? dataSourceId = null)
+        int? dataSourceId = null,
+        int failureCount = 0)
     {
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
@@ -36,6 +37,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
             UpdatedUtc = nowUtc,
             LastStart = lastStart,
             LastEnd = null,
+            FailureCount = failureCount,
             // When no existing DataSourceId is supplied, a fresh, unsaved DataSource is attached via
             // the navigation property - EF's graph tracking inserts it in the same SaveChanges call
             // that adds the task. Passing an existing id (the update-payload case) skips that: the
@@ -263,7 +265,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.Contains(due, x => x.Id == added.Id);
     }
@@ -277,7 +279,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
             NewTask(Guid.NewGuid().ToString(), lastStart: DateTime.UtcNow, triggerEvery: TimeSpan.FromHours(1)),
             CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
@@ -291,7 +293,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), toStartAtUtc: now.AddDays(1)), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
@@ -305,7 +307,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), toEndAtUtc: now.AddDays(-1)), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(now, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
@@ -318,7 +320,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
@@ -331,22 +333,37 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), state: TaskStateId.OnHold), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
 
     [Fact]
-    public async Task FindDueAsync_FailedTask_IsNotDue()
+    public async Task FindDueAsync_FailedTaskExceedingFailureAttemptCount_IsNotDue()
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
         IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
         ExportLoaderTask added = await repository.AddAsync(
-            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed), CancellationToken.None);
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 4),
+            CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_FailedTaskWithinFailureAttemptCount_IsDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 3),
+            CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
+
+        Assert.Contains(due, x => x.Id == added.Id);
     }
 
     [Fact]
@@ -362,7 +379,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
                 triggerEvery: TimeSpan.FromHours(1)),
             CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.Contains(due, x => x.Id == added.Id);
     }
@@ -375,7 +392,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask added = await repository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), triggerEvery: TimeSpan.Zero), CancellationToken.None);
 
-        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
 
         Assert.DoesNotContain(due, x => x.Id == added.Id);
     }
@@ -396,6 +413,21 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.InProgress, fetched!.State);
         Assert.Equal(claimTime, fetched.LastStart);
+    }
+
+    [Fact]
+    public async Task TryClaimAsync_FailedTask_ClaimsAndSetsInProgress()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 1), CancellationToken.None);
+
+        bool claimed = await repository.TryClaimAsync(added.Id, DateTime.UtcNow, CancellationToken.None);
+
+        Assert.True(claimed);
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.InProgress, fetched!.State);
     }
 
     [Fact]
@@ -430,6 +462,7 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.Failed, fetched!.State);
         Assert.Equal("Reaped: exceeded expected run duration", fetched.StateReason);
+        Assert.Equal(1, fetched.FailureCount);
     }
 
     [Fact]
@@ -458,11 +491,42 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
         // 100ns ticks DateTime.UtcNow carries, so an untruncated value round-trips lossily.
         DateTime endTime = new(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
 
-        await repository.RecordOutcomeAsync(added.Id, TaskStateId.Completed, endTime, "Committed 4 of 5, 1 failed", CancellationToken.None);
+        await repository.RecordOutcomeAsync(
+            added.Id, TaskStateId.Completed, endTime, "Committed 4 of 5, 1 failed", FailureCountUpdate.Unchanged, CancellationToken.None);
 
         ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.Completed, fetched!.State);
         Assert.Equal("Committed 4 of 5, 1 failed", fetched.StateReason);
         Assert.Equal(endTime, fetched.LastEnd);
+    }
+
+    [Fact]
+    public async Task RecordOutcomeAsync_ResetFailureCount_SetsFailureCountToZero()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 2), CancellationToken.None);
+
+        await repository.RecordOutcomeAsync(
+            added.Id, TaskStateId.Completed, DateTime.UtcNow, "ok", FailureCountUpdate.Reset, CancellationToken.None);
+
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(0, fetched!.FailureCount);
+    }
+
+    [Fact]
+    public async Task RecordOutcomeAsync_IncrementFailureCount_AddsOneToFailureCount()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), failureCount: 1), CancellationToken.None);
+
+        await repository.RecordOutcomeAsync(
+            added.Id, TaskStateId.Failed, DateTime.UtcNow, "boom", FailureCountUpdate.Increment, CancellationToken.None);
+
+        ExportLoaderTask? fetched = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(2, fetched!.FailureCount);
     }
 }

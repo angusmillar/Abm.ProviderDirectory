@@ -16,7 +16,8 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
     private static ExportLoaderTask NewTask(
         TaskStateId state = TaskStateId.Ready,
         DateTime? lastStart = null,
-        TimeSpan? triggerEvery = null)
+        TimeSpan? triggerEvery = null,
+        int failureCount = 0)
     {
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportLoaderTask
@@ -33,6 +34,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
             UpdatedUtc = nowUtc,
             LastStart = lastStart,
             LastEnd = null,
+            FailureCount = failureCount,
             DataSourceId = 0,
             DataSource = new DataSource { Code = Guid.NewGuid().ToString(), DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
@@ -75,6 +77,7 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         Assert.NotNull(updated);
         Assert.Equal(TaskStateId.Failed, updated!.State);
         Assert.Equal("SIT server unreachable", updated.StateReason);
+        Assert.Equal(1, updated.FailureCount);
     }
 
     [Fact]
@@ -119,5 +122,56 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
         Assert.NotNull(reaped);
         Assert.Equal(TaskStateId.Failed, reaped!.State);
         Assert.Equal("Reaped: exceeded expected run duration", reaped.StateReason);
+        Assert.Equal(1, reaped.FailureCount);
+    }
+
+    [Fact]
+    public async Task DoWork_FailedTaskWithinFailureAttemptCount_IsClaimedAndRun()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
+        ExportLoaderTaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        // CoreApiWebApplicationFactory leaves FailureAttemptCount at its default of 3, so a Failed
+        // task carrying FailureCount 3 is still Due.
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(state: TaskStateId.Failed, failureCount: 3), CancellationToken.None);
+        bool wasCalled = false;
+        exportRunner.Behaviour = (_, _) =>
+        {
+            wasCalled = true;
+            return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
+        };
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.True(wasCalled);
+        ExportLoaderTask? updated = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.Completed, updated!.State);
+        Assert.Equal(0, updated.FailureCount);
+    }
+
+    [Fact]
+    public async Task DoWork_FailedTaskExceedingFailureAttemptCount_IsNeverClaimed()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
+        ExportLoaderTaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(state: TaskStateId.Failed, failureCount: 4), CancellationToken.None);
+        bool wasCalled = false;
+        exportRunner.Behaviour = (_, _) =>
+        {
+            wasCalled = true;
+            return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
+        };
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.False(wasCalled);
+        ExportLoaderTask? unchanged = await repository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(TaskStateId.Failed, unchanged!.State);
+        Assert.Equal(4, unchanged.FailureCount);
     }
 }
