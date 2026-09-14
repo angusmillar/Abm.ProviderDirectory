@@ -7,7 +7,7 @@ public interface ISourceResourceLoader
 {
     Task<SourceResourceLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
-        string jobId,
+        Guid correlationId,
         DataSource dataSource,
         CancellationToken cancellationToken);
 }

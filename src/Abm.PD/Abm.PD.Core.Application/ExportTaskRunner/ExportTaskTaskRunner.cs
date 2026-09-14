@@ -16,6 +16,11 @@ public class ExportTaskTaskRunner(
         ExportTask exportTask,
         CancellationToken cancellationToken)
     {
+        // Our own identifier for this run, independent of the FHIR bulk export server's JobId below -
+        // see the doc comment on TaskBase.LastCorrelationId.
+        Guid correlationId = Guid.CreateVersion7();
+        exportTask.LastCorrelationId = correlationId;
+
         Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);
 
         FhirBulkExportManifest? fhirBulkExportManifest =
@@ -25,13 +30,14 @@ public class ExportTaskTaskRunner(
         ArgumentNullException.ThrowIfNull(fhirExporter.JobId);
 
         logger.LogInformation(
-            "JobId {JobId} ExportTask {TaskCode} download manifest received, persisting to source store",
+            "CorrelationId {CorrelationId} JobId {JobId} ExportTask {TaskCode} download manifest received, persisting to source store",
+            correlationId,
             fhirExporter.JobId,
             exportTask.Code);
-        
+
         return await sourceResourceLoader.Load(
             exportResources: fhirExporter.StreamedExportFileList(cancellationToken),
-            jobId: fhirExporter.JobId,
+            correlationId: correlationId,
             dataSource: exportTask.DataSource,
             cancellationToken: cancellationToken);
     }

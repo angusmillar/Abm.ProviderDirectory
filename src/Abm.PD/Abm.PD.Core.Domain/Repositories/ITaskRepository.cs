@@ -25,5 +25,6 @@ public interface ITaskRepository
         DateTime nowUtc,
         string? stateReason,
         FailureCountUpdate failureCountUpdate,
+        Guid? correlationId,
         CancellationToken cancellationToken);
 }

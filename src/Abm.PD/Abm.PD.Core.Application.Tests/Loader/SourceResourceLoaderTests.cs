@@ -17,6 +17,7 @@ namespace Abm.PD.Core.Application.Tests.Loader;
 public class SourceResourceLoaderTests
 {
     private static readonly DataSource TestDataSource = new() { Id = 7, Code = "test-source", DisplayName = "Test Source" };
+    private static readonly Guid TestCorrelationId = Guid.Parse("018f6e6e-0000-7000-8000-000000000001");
 
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
@@ -60,7 +61,7 @@ public class SourceResourceLoaderTests
         SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 4);
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(2, result.BatchCount);
         Assert.Equal(4, result.CommittedCount);
@@ -75,7 +76,7 @@ public class SourceResourceLoaderTests
         SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 5);
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(3, result.BatchCount);
         Assert.Equal(5, result.CommittedCount);
@@ -89,14 +90,14 @@ public class SourceResourceLoaderTests
         SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 0);
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(0, result.BatchCount);
         Assert.Empty(repository.ReceivedBatches);
     }
 
     [Fact]
-    public async Task Load_PersistsJobIdResourceTypeIdAndDataSourceAlongsideTheResourceJson()
+    public async Task Load_PersistsCorrelationIdResourceTypeIdAndDataSourceAlongsideTheResourceJson()
     {
         FakeSourceResourceRepository repository = new();
         SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
@@ -107,10 +108,10 @@ public class SourceResourceLoaderTests
                 RecordingExportResourceSource.NewPractitioner("1", lastUpdated), lineNumber: 1),
         ]);
 
-        await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         SourceResource persisted = Assert.Single(repository.ReceivedBatches.SelectMany(batch => batch));
-        Assert.Equal("job-1", persisted.JobId);
+        Assert.Equal(TestCorrelationId, persisted.CorrelationId);
         Assert.Equal("Practitioner", persisted.ResourceType);
         Assert.Equal("1", persisted.ResourceId);
         Assert.Equal(lastUpdated, persisted.ResourceLastUpdated);
@@ -133,7 +134,7 @@ public class SourceResourceLoaderTests
             RecordingExportResourceSource.ExportResource(RecordingExportResourceSource.NewPractitioner("3"), lineNumber: 3),
         ]);
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(3, result.SubmittedCount);
         Assert.Equal(2, result.CommittedCount);
@@ -156,7 +157,7 @@ public class SourceResourceLoaderTests
                 new Hl7.Fhir.Model.Practitioner { Id = "1", Meta = null }, lineNumber: 1),
         ]);
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(1, result.SubmittedCount);
         Assert.Equal(0, result.CommittedCount);
@@ -174,7 +175,7 @@ public class SourceResourceLoaderTests
                 .Select(_ => RecordingExportResourceSource.ExportResource(RecordingExportResourceSource.NewPractitioner(null)))
                 .ToList());
 
-        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        SourceResourceLoadResult result = await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         Assert.Equal(4, result.FailedCount);
         Assert.Equal(2, result.RetainedFailures.Count);
@@ -197,7 +198,7 @@ public class SourceResourceLoaderTests
         SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 6);
 
-        Task<SourceResourceLoadResult> loadTask = loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None);
+        Task<SourceResourceLoadResult> loadTask = loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
 
         //While the first commit is still in flight the loader must gather the next batch, so the read reaches
         //four resources: the two being committed and the two filling the batch behind them.
@@ -224,7 +225,7 @@ public class SourceResourceLoaderTests
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 6);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => loader.Load(source.ReadAsync(), "job-1", TestDataSource, CancellationToken.None));
+            () => loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None));
 
         Assert.True(source.PulledCount < 6);
     }

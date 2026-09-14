@@ -28,12 +28,11 @@ public class SourceResourceLoader(
 {
     public async Task<SourceResourceLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
-        string jobId,
+        Guid correlationId,
         DataSource dataSource,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(exportResources);
-        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
         ArgumentNullException.ThrowIfNull(dataSource);
 
         int batchSize = settings.Value.BatchSize;
@@ -48,7 +47,7 @@ public class SourceResourceLoader(
             {
                 tally.SubmittedCount++;
 
-                SourceResource? sourceResource = await TryConvertAsync(exportResource, jobId, dataSource, tally);
+                SourceResource? sourceResource = await TryConvertAsync(exportResource, correlationId, dataSource, tally);
                 if (sourceResource is null)
                 {
                     continue;
@@ -122,11 +121,11 @@ public class SourceResourceLoader(
 
     private async Task<SourceResource?> TryConvertAsync(
         FhirBulkExportResource exportResource,
-        string jobId,
+        Guid correlationId,
         DataSource dataSource,
         LoadTally tally)
     {
-        //The natural key (JobId, ResourceType, ResourceId) can not be formed without an id, so the resource is
+        //The natural key (CorrelationId, ResourceType, ResourceId) can not be formed without an id, so the resource is
         //reported and skipped rather than thrown, so that the rest of the export still lands.
         if (string.IsNullOrWhiteSpace(exportResource.Resource.Id))
         {
@@ -152,7 +151,7 @@ public class SourceResourceLoader(
 
         return new SourceResource
         {
-            JobId = jobId,
+            CorrelationId = correlationId,
             ResourceType = exportResource.Resource.TypeName,
             ResourceId = exportResource.Resource.Id,
             ResourceLastUpdated = resourceLastUpdated,

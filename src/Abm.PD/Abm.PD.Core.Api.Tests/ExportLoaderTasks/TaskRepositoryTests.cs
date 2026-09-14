@@ -286,13 +286,16 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
         ExportTask added = await exportTaskRepository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
         DateTime endTime = new(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
 
+        Guid correlationId = Guid.CreateVersion7();
+
         await taskRepository.RecordOutcomeAsync(
-            added.Id, TaskStateId.Completed, endTime, "Committed 4 of 5, 1 failed", FailureCountUpdate.Unchanged, CancellationToken.None);
+            added.Id, TaskStateId.Completed, endTime, "Committed 4 of 5, 1 failed", FailureCountUpdate.Unchanged, correlationId, CancellationToken.None);
 
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.Completed, fetched!.State);
         Assert.Equal("Committed 4 of 5, 1 failed", fetched.StateReason);
         Assert.Equal(endTime, fetched.LastEnd);
+        Assert.Equal(correlationId, fetched.LastCorrelationId);
     }
 
     [Fact]
@@ -305,7 +308,7 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
             NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 2), CancellationToken.None);
 
         await taskRepository.RecordOutcomeAsync(
-            added.Id, TaskStateId.Completed, DateTime.UtcNow, "ok", FailureCountUpdate.Reset, CancellationToken.None);
+            added.Id, TaskStateId.Completed, DateTime.UtcNow, "ok", FailureCountUpdate.Reset, Guid.CreateVersion7(), CancellationToken.None);
 
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(0, fetched!.FailureCount);
@@ -321,7 +324,7 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
             NewTask(Guid.NewGuid().ToString(), failureCount: 1), CancellationToken.None);
 
         await taskRepository.RecordOutcomeAsync(
-            added.Id, TaskStateId.Failed, DateTime.UtcNow, "boom", FailureCountUpdate.Increment, CancellationToken.None);
+            added.Id, TaskStateId.Failed, DateTime.UtcNow, "boom", FailureCountUpdate.Increment, Guid.CreateVersion7(), CancellationToken.None);
 
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(2, fetched!.FailureCount);

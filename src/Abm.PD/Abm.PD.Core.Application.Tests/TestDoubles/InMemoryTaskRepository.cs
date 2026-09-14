@@ -64,6 +64,7 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
         DateTime nowUtc,
         string? stateReason,
         FailureCountUpdate failureCountUpdate,
+        Guid? correlationId,
         CancellationToken cancellationToken)
     {
         TaskBase? task = tasks.SingleOrDefault(t => t.Id == id);
@@ -72,6 +73,7 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
             task.State = state;
             task.LastEnd = nowUtc;
             task.StateReason = stateReason;
+            task.LastCorrelationId = correlationId;
             task.FailureCount = failureCountUpdate switch
             {
                 FailureCountUpdate.Reset => 0,

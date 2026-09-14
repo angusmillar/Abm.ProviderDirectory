@@ -60,6 +60,7 @@ public class TaskScheduler(
                     dateTimeProvider.Now.UtcDateTime,
                     $"Unsupported task type {task.TypeId}",
                     FailureCountUpdate.Increment,
+                    correlationId: null,
                     CancellationToken.None);
                 continue;
             }
@@ -72,12 +73,15 @@ public class TaskScheduler(
             using IServiceScope taskScope = serviceScopeFactory.CreateScope();
             IExportTaskRunner exportTaskRunner = taskScope.ServiceProvider.GetRequiredService<IExportTaskRunner>();
 
+            // Declared outside the try block so the catch below can still report the CorrelationId that
+            // ExportTaskTaskRunner.Run mints on exportTask, even when Run itself is what threw.
+            ExportTask? exportTask = null;
             try
             {
                 // task (from ITaskRepository) never has its DataSource navigation loaded - it's
                 // re-fetched here through IExportTaskRepository, which Includes it, rather than
                 // passed straight to IExportRunner.Run.
-                ExportTask exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
+                exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
                     ?? throw new InvalidOperationException($"ExportTask {task.Id} was claimed but no longer exists");
 
                 SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, cancellationToken);
@@ -87,6 +91,7 @@ public class TaskScheduler(
                     dateTimeProvider.Now.UtcDateTime,
                     $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
                     FailureCountUpdate.Reset,
+                    exportTask.LastCorrelationId,
                     CancellationToken.None);
             }
             catch (Exception exception)
@@ -98,6 +103,7 @@ public class TaskScheduler(
                     dateTimeProvider.Now.UtcDateTime,
                     exception.Message,
                     FailureCountUpdate.Increment,
+                    exportTask?.LastCorrelationId,
                     CancellationToken.None);
             }
         }

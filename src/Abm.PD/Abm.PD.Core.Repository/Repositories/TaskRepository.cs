@@ -59,6 +59,7 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
         DateTime nowUtc,
         string? stateReason,
         FailureCountUpdate failureCountUpdate,
+        Guid? correlationId,
         CancellationToken cancellationToken)
     {
         // ExecuteUpdateAsync takes an expression tree, so the FailureCount branch can't be factored
@@ -72,6 +73,7 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
                         .SetProperty(t => t.State, state)
                         .SetProperty(t => t.LastEnd, nowUtc)
                         .SetProperty(t => t.StateReason, stateReason)
+                        .SetProperty(t => t.LastCorrelationId, correlationId)
                         .SetProperty(t => t.FailureCount, 0), cancellationToken);
                 break;
             case FailureCountUpdate.Increment:
@@ -81,6 +83,7 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
                         .SetProperty(t => t.State, state)
                         .SetProperty(t => t.LastEnd, nowUtc)
                         .SetProperty(t => t.StateReason, stateReason)
+                        .SetProperty(t => t.LastCorrelationId, correlationId)
                         .SetProperty(t => t.FailureCount, t => t.FailureCount + 1), cancellationToken);
                 break;
             default:
@@ -89,7 +92,8 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
                     .ExecuteUpdateAsync(s => s
                         .SetProperty(t => t.State, state)
                         .SetProperty(t => t.LastEnd, nowUtc)
-                        .SetProperty(t => t.StateReason, stateReason), cancellationToken);
+                        .SetProperty(t => t.StateReason, stateReason)
+                        .SetProperty(t => t.LastCorrelationId, correlationId), cancellationToken);
                 break;
         }
     }

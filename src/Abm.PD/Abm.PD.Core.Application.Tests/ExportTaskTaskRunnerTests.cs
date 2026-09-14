@@ -56,7 +56,8 @@ public class ExportTaskTaskRunnerTests
 
         Assert.Equal(1, result.CommittedCount);
         Assert.Single(fakeLoader.ReceivedResources);
-        Assert.Equal(fakeExporter.JobId, fakeLoader.ReceivedJobId);
+        Assert.NotEqual(Guid.Empty, fakeLoader.ReceivedCorrelationId);
+        Assert.Equal(task.LastCorrelationId, fakeLoader.ReceivedCorrelationId);
         Assert.Same(task.DataSource, fakeLoader.ReceivedDataSource);
         Assert.NotNull(fakeExporter.ReceivedParameters);
     }

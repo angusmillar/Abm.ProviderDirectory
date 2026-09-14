@@ -10,19 +10,12 @@ internal sealed class SourceResourceConfiguration : IEntityTypeConfiguration<Sou
     private const int ResourceIdMaxLength = 64;
     private const int ResourceTypeMaxLength = 50;
 
-    // JobId's shape is the source server's to define - it is parsed out of a Location header rather
-    // than issued by us - so it gets a generous bound rather than reusing EntityConfigurationConstants.CodeMaxLength.
-    private const int JobIdMaxLength = 200;
-
     public void Configure(EntityTypeBuilder<SourceResource> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.ToTable("source_resource");
         builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.JobId)
-            .HasMaxLength(JobIdMaxLength);
 
         builder.Property(x => x.ResourceType)
             .HasMaxLength(ResourceTypeMaxLength);
@@ -36,10 +29,10 @@ internal sealed class SourceResourceConfiguration : IEntityTypeConfiguration<Sou
         builder.Property(x => x.Resource)
             .HasColumnType("jsonb");
 
-        // One row per resource per job. This single unique index also serves the two read patterns
-        // needed - "everything for a JobId" and "this job's copy of this resource" - through the
-        // leftmost prefix, so no second index is carried just for the JobId-only lookup.
-        builder.HasIndex(x => new { x.JobId, x.ResourceType, x.ResourceId })
+        // One row per resource per run. This single unique index also serves the two read patterns
+        // needed - "everything for a CorrelationId" and "this run's copy of this resource" - through
+        // the leftmost prefix, so no second index is carried just for the CorrelationId-only lookup.
+        builder.HasIndex(x => new { x.CorrelationId, x.ResourceType, x.ResourceId })
             .IsUnique();
 
         builder.Property(x => x.DataSourceId)

@@ -4,7 +4,7 @@ public class SourceResource
 {
     public int Id { get; set; }
     
-    public required string JobId { get; set; }
+    public required Guid CorrelationId { get; set; }
 
     public required string ResourceType { get; set; }
     

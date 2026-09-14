@@ -49,4 +49,9 @@ public abstract class TaskBase
     // against TaskSchedulerSettings.FailureAttemptCount to decide whether a Failed task
     // is still Due.
     public int FailureCount { get; set; }
+
+    // A version 7 GUID minted fresh by the runner at the start of each run - our own identifier for
+    // correlating that run's logs and its persisted SourceResource rows, independent of whatever job
+    // id the target system (e.g. the FHIR bulk export server) assigns.
+    public Guid? LastCorrelationId { get; set; }
 }

@@ -10,11 +10,13 @@ namespace Abm.PD.Core.Api.Tests.SourceResources;
 
 /// <summary>
 /// Covers the two things specific to source_resource's schema that no in-memory fake exercises: the jsonb
-/// column actually round trips the resource payload, and (JobId, ResourceType, ResourceId) is enforced as a
-/// real database constraint rather than only an application-level assumption.
+/// column actually round trips the resource payload, and (CorrelationId, ResourceType, ResourceId) is enforced
+/// as a real database constraint rather than only an application-level assumption.
 /// </summary>
 public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
+    private static readonly Guid DefaultCorrelationId = Guid.Parse("018f6e6e-0000-7000-8000-000000000002");
+
     private readonly IntegrationTestFixture Fixture = fixture;
 
     private async Task<DataSource> NewPersistedDataSourceAsync(IServiceProvider services)
@@ -27,7 +29,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
 
     private static SourceResource NewSourceResource(
         DataSource dataSource,
-        string jobId = "job-1",
+        Guid? correlationId = null,
         string resourceType = "Practitioner",
         string resourceId = "1",
         string json = "{\"resourceType\":\"Practitioner\",\"id\":\"1\"}")
@@ -35,7 +37,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         DateTime nowUtc = DateTime.UtcNow;
         return new SourceResource
         {
-            JobId = jobId,
+            CorrelationId = correlationId ?? DefaultCorrelationId,
             ResourceType = resourceType,
             ResourceId = resourceId,
             ResourceLastUpdated = DateTimeOffset.UtcNow,
@@ -69,14 +71,14 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         Assert.Equal("Practitioner", persistedJson.RootElement.GetProperty("resourceType").GetString());
         Assert.Equal("1", persistedJson.RootElement.GetProperty("id").GetString());
         Assert.True(persistedJson.RootElement.GetProperty("active").GetBoolean());
-        Assert.Equal("job-1", persisted.JobId);
+        Assert.Equal(DefaultCorrelationId, persisted.CorrelationId);
         Assert.Equal("Practitioner", persisted.ResourceType);
         Assert.Equal("1", persisted.ResourceId);
         Assert.Equal(dataSource.Id, persisted.DataSourceId);
     }
 
     [Fact]
-    public async Task AddRangeAsync_DuplicateJobIdResourceTypeResourceId_ViolatesUniqueIndex()
+    public async Task AddRangeAsync_DuplicateCorrelationIdResourceTypeResourceId_ViolatesUniqueIndex()
     {
         using IServiceScope setupScope = Fixture.Services.CreateScope();
         DataSource dataSource = await NewPersistedDataSourceAsync(setupScope.ServiceProvider);

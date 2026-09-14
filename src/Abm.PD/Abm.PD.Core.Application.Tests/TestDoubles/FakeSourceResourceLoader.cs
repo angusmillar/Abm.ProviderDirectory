@@ -8,7 +8,7 @@ public sealed class FakeSourceResourceLoader : ISourceResourceLoader
 {
     public List<FhirBulkExportResource> ReceivedResources { get; } = [];
 
-    public string? ReceivedJobId { get; private set; }
+    public Guid? ReceivedCorrelationId { get; private set; }
 
     public DataSource? ReceivedDataSource { get; private set; }
 
@@ -17,11 +17,11 @@ public sealed class FakeSourceResourceLoader : ISourceResourceLoader
 
     public async Task<SourceResourceLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
-        string jobId,
+        Guid correlationId,
         DataSource dataSource,
         CancellationToken cancellationToken)
     {
-        ReceivedJobId = jobId;
+        ReceivedCorrelationId = correlationId;
         ReceivedDataSource = dataSource;
 
         await foreach (FhirBulkExportResource resource in exportResources.WithCancellation(cancellationToken))
