@@ -1,5 +1,7 @@
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
+using Abm.Core.Extensions;
+using Abm.Core.Time;
 
 namespace Abm.PD.Core.Api.Contracts;
 
@@ -31,7 +33,7 @@ public record ExportLoaderTaskResponse(
     string DataSourceCode,
     ExportLoaderTaskParameterRequest Parameter)
 {
-    public static ExportLoaderTaskResponse FromEntity(ExportLoaderTask exportLoaderTask, TimeSpan serviceDefaultTimeZone)
+    public static ExportLoaderTaskResponse FromEntity(ExportLoaderTask exportLoaderTask, IDateTimeProvider dateTimeProvider)
     {
         return new ExportLoaderTaskResponse(
             Id: exportLoaderTask.Id,
@@ -42,22 +44,17 @@ public record ExportLoaderTaskResponse(
             State: exportLoaderTask.State,
             StateReason: exportLoaderTask.StateReason,
             TriggerEvery: exportLoaderTask.TriggerEvery,
-            ToStartAtUtc: ToServiceOffset(exportLoaderTask.ToStartAtUtc, serviceDefaultTimeZone),
-            ToEndAtUtc: ToServiceOffset(exportLoaderTask.ToEndAtUtc, serviceDefaultTimeZone),
-            CreatedUtc: ToServiceOffset(exportLoaderTask.CreatedUtc, serviceDefaultTimeZone),
-            UpdatedUtc: ToServiceOffset(exportLoaderTask.UpdatedUtc, serviceDefaultTimeZone),
-            LastStartUtc: ToServiceOffset(exportLoaderTask.LastStart, serviceDefaultTimeZone),
-            LastEndUtc: ToServiceOffset(exportLoaderTask.LastEnd, serviceDefaultTimeZone),
+            ToStartAtUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.ToStartAtUtc),
+            ToEndAtUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.ToEndAtUtc),
+            CreatedUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.CreatedUtc),
+            UpdatedUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.UpdatedUtc),
+            LastStartUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.LastStart),
+            LastEndUtc: dateTimeProvider.ToServiceOffset(exportLoaderTask.LastEnd),
             DataSourceCode: exportLoaderTask.DataSource.Code,
             Parameter: new ExportLoaderTaskParameterRequest(
                 Type: exportLoaderTask.Parameter.Type,
-                Since: exportLoaderTask.Parameter.Since?.ToOffset(serviceDefaultTimeZone),
+                Since: exportLoaderTask.Parameter.Since?.ToOffset(dateTimeProvider.ServiceDefaultTimeZone),
                 TypeFilterList: exportLoaderTask.Parameter.TypeFilterList));
     }
-
-    private static DateTimeOffset ToServiceOffset(DateTime utcDateTime, TimeSpan serviceDefaultTimeZone) =>
-        new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)).ToOffset(serviceDefaultTimeZone);
-
-    private static DateTimeOffset? ToServiceOffset(DateTime? utcDateTime, TimeSpan serviceDefaultTimeZone) =>
-        utcDateTime is null ? null : ToServiceOffset(utcDateTime.Value, serviceDefaultTimeZone);
+    
 }

@@ -27,7 +27,7 @@ public static class ExportLoaderTaskEndpoints
         [FromQuery(Name = "last-start-from")] DateTime? lastStartFrom,
         [FromQuery(Name = "last-start-to")] DateTime? lastStartTo,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ExportLoaderTask> exportLoaderTaskList = code is null && state is null && lastStartFrom is null && lastStartTo is null
@@ -40,26 +40,26 @@ public static class ExportLoaderTaskEndpoints
                 cancellationToken: cancellationToken);
 
         return Results.Ok(exportLoaderTaskList.Select(
-            x => ExportLoaderTaskResponse.FromEntity(x, timeSettings.Value.ServiceDefaultTimeZone)));
+            x => ExportLoaderTaskResponse.FromEntity(x, dateTimeProvider)));
     }
 
     private static async Task<IResult> GetById(
         int id,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         ExportLoaderTask? exportLoaderTask = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
         return exportLoaderTask is null
             ? Results.NotFound()
-            : Results.Ok(ExportLoaderTaskResponse.FromEntity(exportLoaderTask, timeSettings.Value.ServiceDefaultTimeZone));
+            : Results.Ok(ExportLoaderTaskResponse.FromEntity(exportLoaderTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Create(
         ExportLoaderTaskRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
         IDataSourceRepository dataSourceRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         var dataSourceList = await dataSourceRepository.SearchAsync(code: request.DataSourceCode.Trim(), displayName: null, cancellationToken);
@@ -114,14 +114,14 @@ public static class ExportLoaderTaskEndpoints
         exportLoaderTask = await exportLoaderTaskRepository.AddAsync(exportLoaderTask, cancellationToken);
         return Results.Created(
             $"/ExportLoaderTask/{exportLoaderTask.Id}",
-            ExportLoaderTaskResponse.FromEntity(exportLoaderTask, timeSettings.Value.ServiceDefaultTimeZone));
+            ExportLoaderTaskResponse.FromEntity(exportLoaderTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Update(
         int id,
         ExportLoaderTaskUpdateRequest request,
         IExportLoaderTaskRepository exportLoaderTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         // Code is deliberately absent from ExportLoaderTaskUpdateRequest - it is immutable after
@@ -170,7 +170,7 @@ public static class ExportLoaderTaskEndpoints
         // never changes via update, so carry it over from the already-loaded `existing` rather than
         // returning a response with a null DataSource.
         updated.DataSource = existing.DataSource;
-        return Results.Ok(ExportLoaderTaskResponse.FromEntity(updated, timeSettings.Value.ServiceDefaultTimeZone));
+        return Results.Ok(ExportLoaderTaskResponse.FromEntity(updated, dateTimeProvider));
     }
 
     private static async Task<IResult> Delete(

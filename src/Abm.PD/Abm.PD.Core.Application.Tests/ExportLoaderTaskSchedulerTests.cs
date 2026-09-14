@@ -17,6 +17,20 @@ public class ExportLoaderTaskSchedulerTests
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
         public DateTimeOffset Now => new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public DateTimeOffset ToServiceOffset(
+            DateTime utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        public DateTimeOffset? ToServiceOffset(
+            DateTime? utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
     private static ExportLoaderTask NewTask(

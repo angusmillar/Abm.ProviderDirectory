@@ -7,9 +7,24 @@ namespace Abm.PD.BulkExport.Tests.TestDoubles;
 /// are assertable rather than whatever the machine's clock happened to read.
 /// </summary>
 public sealed class StubDateTimeProvider(
-    DateTimeOffset now) : IDateTimeProvider
+    DateTimeOffset now,
+    TimeSpan serviceDefaultTimeZone) : IDateTimeProvider
 {
     public DateTimeOffset Now { get; private set; } = now;
+
+    public DateTimeOffset ToServiceOffset(
+        DateTime utcDateTime)
+    {
+        throw new NotImplementedException();
+    }
+
+    public DateTimeOffset? ToServiceOffset(
+        DateTime? utcDateTime)
+    {
+        throw new NotImplementedException();
+    }
+
+    public TimeSpan ServiceDefaultTimeZone { get; } = serviceDefaultTimeZone;
 
     public void Advance(
         TimeSpan timeSpan)

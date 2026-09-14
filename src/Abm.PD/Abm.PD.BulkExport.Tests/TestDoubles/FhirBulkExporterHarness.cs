@@ -33,7 +33,7 @@ public sealed class FhirBulkExporterHarness : IDisposable
             },
             messageHandler: Handler);
 
-        DateTimeProvider = new StubDateTimeProvider(now ?? new DateTimeOffset(2026, 8, 31, 9, 0, 0, TimeSpan.FromHours(10)));
+        DateTimeProvider = new StubDateTimeProvider(now ?? new DateTimeOffset(2026, 8, 31, 9, 0, 0, TimeSpan.FromHours(10)), TimeSpan.FromHours(10));
         FhirHttpClientFactory = new StubFhirHttpClientFactory(FhirClient);
         HttpClientFactory = new StubHttpClientFactory(HttpClient);
 
