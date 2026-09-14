@@ -37,69 +37,36 @@ Respawn (`Abm.PD.Core.Api.Tests`), hand-rolled test doubles (no mocking library)
 
 ---
 
-## Task 1: Fix the pre-existing build break and confirm a green baseline
+## Task 1: Confirm a green baseline (superseded — no longer a fix task)
 
-There is an uncommitted, broken edit already sitting in the working tree:
-`src/Abm.PD/Abm.PD.Core.Repository/Repositories/ExportLoaderTaskRepository.cs` has
-`Task<IReadOnlyList<ExportLoaderTask>FindDueAsync(` (missing `>`) instead of
-`Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(`. Nothing in this plan can be verified against a
-broken build, so this is fixed first, in isolation, before any of the actual refactor begins.
+**Superseded at execution time.** This task originally existed to fix an uncommitted, broken edit in
+`ExportLoaderTaskRepository.cs` (`Task<IReadOnlyList<ExportLoaderTask>FindDueAsync(`, missing `>`). By
+the time execution started, that fix was already present in the working tree — applied independently,
+outside this plan, alongside other concurrent work that was reviewed and committed separately (see the
+ledger's preflight section for the `6e2b6d0` commit covering that unrelated `IDateTimeProvider.
+ToServiceOffset`/`ServiceDefaultTimeZone` work, which Task 3/4/5's steps below already account for).
+`dotnet build src/Abm.PD/Abm.PD.slnx` was confirmed to succeed (0 errors) directly by the controller
+before Task 2 was dispatched — there is no code change left for this task to make. It is kept in the
+plan, marked superseded, purely so the task numbering below stays stable and the ledger has a clear
+place to record the baseline-confirmed ruling.
 
-**Files:**
-- Modify: `src/Abm.PD/Abm.PD.Core.Repository/Repositories/ExportLoaderTaskRepository.cs:130`
+**Files:** none — no code change.
 
-**Interfaces:**
-- Consumes: nothing new.
-- Produces: nothing new — this task only restores the file to a compiling state matching its
-  pre-existing (committed) shape.
+**Interfaces:** none — no code change.
 
-- [ ] **Step 1: Fix the missing `>`**
-
-In `src/Abm.PD/Abm.PD.Core.Repository/Repositories/ExportLoaderTaskRepository.cs`, find:
-
-```csharp
-    public async Task<IReadOnlyList<ExportLoaderTask>FindDueAsync(
-        DateTime nowUtc,
-        int failureAttemptCount,
-        CancellationToken cancellationToken)
-```
-
-Replace with:
-
-```csharp
-    public async Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
-        DateTime nowUtc,
-        int failureAttemptCount,
-        CancellationToken cancellationToken)
-```
-
-- [ ] **Step 2: Build the solution**
-
-Run: `dotnet build src/Abm.PD/Abm.PD.slnx`
-Expected: build succeeds, 0 errors.
-
+- [x] **Step 1 (superseded): the missing `>` fix** — already present in the working tree before
+  execution began; nothing to do.
+- [x] **Step 2 (controller-verified, not dispatched): `dotnet build src/Abm.PD/Abm.PD.slnx`** — 0
+  errors, confirmed by the controller directly.
 - [ ] **Step 3: Run the full test suite to confirm a green baseline**
 
 Run: `dotnet test src/Abm.PD/Abm.PD.slnx`
 Expected: all tests pass (Docker must be running for `Abm.PD.Core.Api.Tests`'s Testcontainers-backed
 integration tests). If anything is already red here, stop and investigate before proceeding — every
-later task in this plan assumes this baseline was green.
+later task in this plan assumes this baseline was green. This step still needs running — a passing
+build does not confirm the test suite is green.
 
-- [ ] **Step 4: Commit**
-
-```bash
-git add src/Abm.PD/Abm.PD.Core.Repository/Repositories/ExportLoaderTaskRepository.cs
-git commit -m "$(cat <<'EOF'
-Fix uncommitted syntax error in ExportLoaderTaskRepository.FindDueAsync
-
-Restores the missing closing angle bracket on the method's return type so the
-solution builds again, ahead of the scheduler/repository refactor.
-
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01UMWQENpvJ4gbbbbtmhodF8
-EOF
-)"
-```
+- [ ] **Step 4: No commit** — there is nothing to commit for this task; proceed directly to Task 2.
 
 ---
 
@@ -727,7 +694,13 @@ row from `ITaskRepository`). The four now-redundant methods are removed from `IE
 
 **Interfaces:**
 - Consumes: `ITaskRepository` (Task 2). `IExportLoaderTaskRepository.GetByIdAsync` (existing, unchanged
-  signature).
+  signature). Also note: `IDateTimeProvider` already carries three extra members —
+  `ToServiceOffset(DateTime)`, `ToServiceOffset(DateTime?)`, `ServiceDefaultTimeZone` — added by an
+  already-committed, unrelated change (commit `6e2b6d0`, moving UTC-to-service-offset conversion onto
+  `IDateTimeProvider`). Any test double that implements `IDateTimeProvider`
+  (`ExportLoaderTaskSchedulerTests`'s nested `FixedDateTimeProvider` in this task's Step 8) must
+  implement all three, even though nothing in this task's own tests calls them — `IDateTimeProvider.Now`
+  is still the only member `TaskScheduler`/`ExportLoaderTaskScheduler` itself actually reads.
 - Produces: `ExportLoaderTaskScheduler` now takes `(ITaskRepository, IExportLoaderTaskRepository,
   IServiceScopeFactory, IDateTimeProvider, IOptions<ExportLoaderTaskSchedulerSettings>,
   ILogger<ExportLoaderTaskScheduler>)`. `IExportLoaderTaskRepository` shrinks to `GetAllAsync`,
@@ -1197,6 +1170,20 @@ public class ExportLoaderTaskSchedulerTests
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
         public DateTimeOffset Now => new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public DateTimeOffset ToServiceOffset(
+            DateTime utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        public DateTimeOffset? ToServiceOffset(
+            DateTime? utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
     private static ExportLoaderTask NewTask(
@@ -1402,7 +1389,10 @@ chain, with an explicit `using Abm.PD.Core.Application;`).
 - Delete + recreate as: `src/Abm.PD/Abm.PD.Core.Api.Tests/ExportLoaderTasks/TaskSchedulerTests.cs` (was `ExportLoaderTaskSchedulerTests.cs`)
 
 **Interfaces:**
-- Consumes: `ITaskRepository`, `IExportLoaderTaskRepository` (Tasks 2-3, unchanged signatures).
+- Consumes: `ITaskRepository`, `IExportLoaderTaskRepository` (Tasks 2-3, unchanged signatures). Same
+  `IDateTimeProvider` note as Task 3: any `IDateTimeProvider` test double here (this task's Step 6
+  rewrite of `TaskSchedulerTests`'s nested `FixedDateTimeProvider`) carries the already-committed
+  `ToServiceOffset`/`ServiceDefaultTimeZone` members, unused by the scheduler itself.
 - Produces: `TaskScheduler` (renamed from `ExportLoaderTaskScheduler`, same constructor shape but
   `IOptions<TaskSchedulerSettings>` and `ILogger<TaskScheduler>`). `TaskSchedulerSettings` (renamed from
   `ExportLoaderTaskSchedulerSettings`), `SectionName = "TaskScheduler"`.
@@ -1727,6 +1717,20 @@ public class TaskSchedulerTests
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
         public DateTimeOffset Now => new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public DateTimeOffset ToServiceOffset(
+            DateTime utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        public DateTimeOffset? ToServiceOffset(
+            DateTime? utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
     private static ExportLoaderTask NewTask(
@@ -2147,6 +2151,15 @@ expected; verification here is `dotnet build` against the non-test projects only
 
 **Interfaces:**
 - Consumes: `TaskBase`, `TaskTypeId`, `TaskStateId`, `DataSource`, `ExportParameter` (existing, unchanged).
+  Also `IDateTimeProvider.ToServiceOffset(DateTime)`, `ToServiceOffset(DateTime?)`, and
+  `ServiceDefaultTimeZone` (`Abm.Core.Time`) — these already exist on `IDateTimeProvider` and
+  `DateTimeProvider` as of a separate, already-committed change (commit `6e2b6d0`) that moved the
+  UTC-to-service-offset conversion off `ExportLoaderTaskResponse`'s own private statics and off
+  `IOptions<TimeSettings>` call sites in `ExportLoaderTaskEndpoints`. This task's `ExportTaskResponse`/
+  `ExportTaskEndpoints` are written directly against that already-refactored shape (`FromEntity(ExportTask,
+  IDateTimeProvider)`, endpoints inject `IDateTimeProvider` not `IOptions<TimeSettings>`) — it does not
+  reintroduce the old `TimeSpan serviceDefaultTimeZone`/`IOptions<TimeSettings>` shape the original
+  `ExportLoaderTaskResponse`/`ExportLoaderTaskEndpoints` had before that commit.
 - Produces: `ExportTask : TaskBase` (was `ExportLoaderTask`). `IExportTaskRepository` (was
   `IExportLoaderTaskRepository`), same six CRUD members, `ExportTask` in place of `ExportLoaderTask`
   throughout. `ExportTaskRepository : IExportTaskRepository`. `IExportRunner.Run(ExportTask, ct)` (was
@@ -2619,7 +2632,7 @@ public static class ExportTaskEndpoints
         [FromQuery(Name = "last-start-from")] DateTime? lastStartFrom,
         [FromQuery(Name = "last-start-to")] DateTime? lastStartTo,
         IExportTaskRepository exportTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ExportTask> exportTaskList = code is null && state is null && lastStartFrom is null && lastStartTo is null
@@ -2632,26 +2645,26 @@ public static class ExportTaskEndpoints
                 cancellationToken: cancellationToken);
 
         return Results.Ok(exportTaskList.Select(
-            x => ExportTaskResponse.FromEntity(x, timeSettings.Value.ServiceDefaultTimeZone)));
+            x => ExportTaskResponse.FromEntity(x, dateTimeProvider)));
     }
 
     private static async Task<IResult> GetById(
         int id,
         IExportTaskRepository exportTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         ExportTask? exportTask = await exportTaskRepository.GetByIdAsync(id, cancellationToken);
         return exportTask is null
             ? Results.NotFound()
-            : Results.Ok(ExportTaskResponse.FromEntity(exportTask, timeSettings.Value.ServiceDefaultTimeZone));
+            : Results.Ok(ExportTaskResponse.FromEntity(exportTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Create(
         ExportTaskRequest request,
         IExportTaskRepository exportTaskRepository,
         IDataSourceRepository dataSourceRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         var dataSourceList = await dataSourceRepository.SearchAsync(code: request.DataSourceCode.Trim(), displayName: null, cancellationToken);
@@ -2706,14 +2719,14 @@ public static class ExportTaskEndpoints
         exportTask = await exportTaskRepository.AddAsync(exportTask, cancellationToken);
         return Results.Created(
             $"/ExportTask/{exportTask.Id}",
-            ExportTaskResponse.FromEntity(exportTask, timeSettings.Value.ServiceDefaultTimeZone));
+            ExportTaskResponse.FromEntity(exportTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Update(
         int id,
         ExportTaskUpdateRequest request,
         IExportTaskRepository exportTaskRepository,
-        IOptions<TimeSettings> timeSettings,
+        IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
         // Code is deliberately absent from ExportTaskUpdateRequest - it is immutable after
@@ -2762,7 +2775,7 @@ public static class ExportTaskEndpoints
         // never changes via update, so carry it over from the already-loaded `existing` rather than
         // returning a response with a null DataSource.
         updated.DataSource = existing.DataSource;
-        return Results.Ok(ExportTaskResponse.FromEntity(updated, timeSettings.Value.ServiceDefaultTimeZone));
+        return Results.Ok(ExportTaskResponse.FromEntity(updated, dateTimeProvider));
     }
 
     private static async Task<IResult> Delete(
@@ -2845,6 +2858,8 @@ Delete `src/Abm.PD/Abm.PD.Core.Api/Contracts/ExportLoaderTaskResponse.cs`. Creat
 ```csharp
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
+using Abm.Core.Extensions;
+using Abm.Core.Time;
 
 namespace Abm.PD.Core.Api.Contracts;
 
@@ -2876,7 +2891,7 @@ public record ExportTaskResponse(
     string DataSourceCode,
     ExportTaskParameterRequest Parameter)
 {
-    public static ExportTaskResponse FromEntity(ExportTask exportTask, TimeSpan serviceDefaultTimeZone)
+    public static ExportTaskResponse FromEntity(ExportTask exportTask, IDateTimeProvider dateTimeProvider)
     {
         return new ExportTaskResponse(
             Id: exportTask.Id,
@@ -2887,24 +2902,19 @@ public record ExportTaskResponse(
             State: exportTask.State,
             StateReason: exportTask.StateReason,
             TriggerEvery: exportTask.TriggerEvery,
-            ToStartAtUtc: ToServiceOffset(exportTask.ToStartAtUtc, serviceDefaultTimeZone),
-            ToEndAtUtc: ToServiceOffset(exportTask.ToEndAtUtc, serviceDefaultTimeZone),
-            CreatedUtc: ToServiceOffset(exportTask.CreatedUtc, serviceDefaultTimeZone),
-            UpdatedUtc: ToServiceOffset(exportTask.UpdatedUtc, serviceDefaultTimeZone),
-            LastStartUtc: ToServiceOffset(exportTask.LastStart, serviceDefaultTimeZone),
-            LastEndUtc: ToServiceOffset(exportTask.LastEnd, serviceDefaultTimeZone),
+            ToStartAtUtc: dateTimeProvider.ToServiceOffset(exportTask.ToStartAtUtc),
+            ToEndAtUtc: dateTimeProvider.ToServiceOffset(exportTask.ToEndAtUtc),
+            CreatedUtc: dateTimeProvider.ToServiceOffset(exportTask.CreatedUtc),
+            UpdatedUtc: dateTimeProvider.ToServiceOffset(exportTask.UpdatedUtc),
+            LastStartUtc: dateTimeProvider.ToServiceOffset(exportTask.LastStart),
+            LastEndUtc: dateTimeProvider.ToServiceOffset(exportTask.LastEnd),
             DataSourceCode: exportTask.DataSource.Code,
             Parameter: new ExportTaskParameterRequest(
                 Type: exportTask.Parameter.Type,
-                Since: exportTask.Parameter.Since?.ToOffset(serviceDefaultTimeZone),
+                Since: exportTask.Parameter.Since?.ToOffset(dateTimeProvider.ServiceDefaultTimeZone),
                 TypeFilterList: exportTask.Parameter.TypeFilterList));
     }
-
-    private static DateTimeOffset ToServiceOffset(DateTime utcDateTime, TimeSpan serviceDefaultTimeZone) =>
-        new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)).ToOffset(serviceDefaultTimeZone);
-
-    private static DateTimeOffset? ToServiceOffset(DateTime? utcDateTime, TimeSpan serviceDefaultTimeZone) =>
-        utcDateTime is null ? null : ToServiceOffset(utcDateTime.Value, serviceDefaultTimeZone);
+    
 }
 ```
 
@@ -3338,6 +3348,20 @@ public class TaskSchedulerTests
     private sealed class FixedDateTimeProvider : IDateTimeProvider
     {
         public DateTimeOffset Now => new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public DateTimeOffset ToServiceOffset(
+            DateTime utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        public DateTimeOffset? ToServiceOffset(
+            DateTime? utcDateTime)
+        {
+            throw new NotImplementedException();
+        }
+        
+        public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
     private static ExportTask NewTask(
