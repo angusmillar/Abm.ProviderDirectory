@@ -337,6 +337,37 @@ public class ExportLoaderTaskRepositoryTests(IntegrationTestFixture fixture) : I
     }
 
     [Fact]
+    public async Task FindDueAsync_FailedTask_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed), CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_CompletedTaskPastTriggerEvery_IsDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ExportLoaderTask added = await repository.AddAsync(
+            NewTask(
+                Guid.NewGuid().ToString(),
+                state: TaskStateId.Completed,
+                lastStart: DateTime.UtcNow.AddHours(-2),
+                triggerEvery: TimeSpan.FromHours(1)),
+            CancellationToken.None);
+
+        IReadOnlyList<ExportLoaderTask> due = await repository.FindDueAsync(DateTime.UtcNow, CancellationToken.None);
+
+        Assert.Contains(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
     public async Task FindDueAsync_ZeroTriggerEvery_IsNotDue()
     {
         using IServiceScope scope = Fixture.Services.CreateScope();

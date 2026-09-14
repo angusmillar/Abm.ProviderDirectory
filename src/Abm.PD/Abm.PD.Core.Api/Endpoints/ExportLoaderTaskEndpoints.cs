@@ -62,10 +62,10 @@ public static class ExportLoaderTaskEndpoints
         IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
-        DataSource? dataSource = await dataSourceRepository.GetByIdAsync(request.DataSourceId, cancellationToken);
-        if (dataSource is null)
+        var dataSourceList = await dataSourceRepository.SearchAsync(code: request.DataSourceCode.Trim(), displayName: null, cancellationToken);
+        if (dataSourceList.Count == 0)
         {
-            return Results.BadRequest($"DataSource {request.DataSourceId} does not exist");
+            return Results.BadRequest($"DataSourceCode {request.DataSourceCode} does not exist");
         }
 
         // Code carries a unique index at the database level - checking first turns what would
@@ -100,8 +100,8 @@ public static class ExportLoaderTaskEndpoints
             UpdatedUtc = nowUtc,
             LastStart = null,
             LastEnd = null,
-            DataSourceId = dataSource.Id,
-            DataSource = dataSource,
+            DataSourceId = dataSourceList.First().Id,
+            DataSource = dataSourceList.First(),
             Parameter = new ExportParameter
             {
                 Type = request.Parameter.Type,
@@ -124,9 +124,9 @@ public static class ExportLoaderTaskEndpoints
         IOptions<TimeSettings> timeSettings,
         CancellationToken cancellationToken)
     {
-        // Code, DataSourceId and DataSource are deliberately absent from ExportLoaderTaskUpdateRequest
-        // - they are immutable after creation, not editable via update - so the existing row is fetched
-        // first and only the editable fields below are copied across.
+        // Code is deliberately absent from ExportLoaderTaskUpdateRequest - it is immutable after
+        // creation. DataSourceCode is present but is also immutable after creation, so it is
+        // validated below against the existing row rather than copied across.
         ExportLoaderTask? existing = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
@@ -137,6 +137,12 @@ public static class ExportLoaderTaskEndpoints
         {
             return Results.BadRequest($"The ExportLoaderTask State={existing.State}', " +
                                       $"can not modify a task while {nameof(TaskStateId.InProgress)} ");
+        }
+        
+        if (!existing.DataSource.Code.Equals(request.DataSourceCode.Trim()))
+        {
+            return Results.BadRequest($"The ExportLoaderTask's DataSourceCode: {request.DataSourceCode.Trim()}', " +
+                                      $"can not be updated. Current DataSourceCode is {existing.DataSource.Code} ");
         }
 
         existing.DisplayName = request.DisplayName;

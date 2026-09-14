@@ -9,8 +9,9 @@ namespace Abm.PD.Core.Api.Contracts;
 /// surfaced as a DateTimeOffset, so API consumers see it as wall-clock local time without losing the
 /// absolute instant. This response can be PUT straight back to <c>/ExportLoaderTask/{id}</c> -
 /// <see cref="ExportLoaderTaskUpdateRequest"/> deliberately omits the server-controlled fields here
-/// (Id, TypeId, Code, DataSourceId, DataSource, CreatedUtc, UpdatedUtc, LastStartUtc, LastEndUtc) so
-/// they are silently ignored rather than erroring the update.
+/// (Id, TypeId, Code, CreatedUtc, UpdatedUtc, LastStartUtc, LastEndUtc) so they are silently ignored
+/// rather than erroring the update. DataSourceCode is present on both, but immutable after creation -
+/// the update handler rejects a PUT that tries to change it.
 /// </summary>
 public record ExportLoaderTaskResponse(
     int Id,
@@ -27,8 +28,7 @@ public record ExportLoaderTaskResponse(
     DateTimeOffset UpdatedUtc,
     DateTimeOffset? LastStartUtc,
     DateTimeOffset? LastEndUtc,
-    int DataSourceId,
-    DataSource DataSource,
+    string DataSourceCode,
     ExportLoaderTaskParameterRequest Parameter)
 {
     public static ExportLoaderTaskResponse FromEntity(ExportLoaderTask exportLoaderTask, TimeSpan serviceDefaultTimeZone)
@@ -48,8 +48,7 @@ public record ExportLoaderTaskResponse(
             UpdatedUtc: ToServiceOffset(exportLoaderTask.UpdatedUtc, serviceDefaultTimeZone),
             LastStartUtc: ToServiceOffset(exportLoaderTask.LastStart, serviceDefaultTimeZone),
             LastEndUtc: ToServiceOffset(exportLoaderTask.LastEnd, serviceDefaultTimeZone),
-            DataSourceId: exportLoaderTask.DataSourceId,
-            DataSource: exportLoaderTask.DataSource,
+            DataSourceCode: exportLoaderTask.DataSource.Code,
             Parameter: new ExportLoaderTaskParameterRequest(
                 Type: exportLoaderTask.Parameter.Type,
                 Since: exportLoaderTask.Parameter.Since?.ToOffset(serviceDefaultTimeZone),

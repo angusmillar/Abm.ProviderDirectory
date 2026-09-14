@@ -11,5 +11,5 @@ public record ExportLoaderTaskRequest(
     TimeSpan TriggerEvery,
     DateTimeOffset? ToStartAtUtc,
     DateTimeOffset? ToEndAtUtc,
-    int DataSourceId,
+    string DataSourceCode,
     ExportLoaderTaskParameterRequest Parameter);

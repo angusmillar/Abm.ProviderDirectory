@@ -58,7 +58,7 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ExportLoaderTask> due = tasks
-            .Where(t => t.State != TaskStateId.InProgress && t.State != TaskStateId.OnHold)
+            .Where(t => t.State == TaskStateId.Ready || t.State == TaskStateId.Completed)
             .Where(t => t.TriggerEvery > TimeSpan.Zero)
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
