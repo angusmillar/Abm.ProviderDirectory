@@ -12,7 +12,8 @@ using Microsoft.Extensions.Options;
 namespace Abm.PD.Core.Application;
 
 public class ExportLoaderTaskScheduler(
-    IExportLoaderTaskRepository repository,
+    ITaskRepository taskRepository,
+    IExportLoaderTaskRepository exportLoaderTaskRepository,
     IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
     IOptions<ExportLoaderTaskSchedulerSettings> settings,
@@ -23,24 +24,38 @@ public class ExportLoaderTaskScheduler(
     {
         DateTime nowUtc = dateTimeProvider.Now.UtcDateTime;
 
-        await repository.ReapStaleInProgressAsync(
+        await taskRepository.ReapStaleInProgressAsync(
             nowUtc - settings.Value.StaleInProgressAfter, cancellationToken);
 
-        IReadOnlyList<ExportLoaderTask> dueExportLoaderTaskList = await repository.FindDueAsync(
+        IReadOnlyList<TaskBase> dueTaskList = await taskRepository.FindDueAsync(
             nowUtc, settings.Value.FailureAttemptCount, cancellationToken);
-        if (dueExportLoaderTaskList.Count == 0)
+        if (dueTaskList.Count == 0)
         {
-            logger.LogInformation("{Service} for {Instance} found no tasks due to run", 
-                nameof(ITimedHostedService), 
-                nameof(ExportLoaderTaskScheduler));    
+            logger.LogInformation("{Service} for {Instance} found no tasks due to run",
+                nameof(ITimedHostedService),
+                nameof(ExportLoaderTaskScheduler));
         }
-        
-        foreach (ExportLoaderTask task in dueExportLoaderTaskList)
+
+        foreach (TaskBase task in dueTaskList)
         {
-            if (!await repository.TryClaimAsync(task.Id, nowUtc, cancellationToken))
+            if (!await taskRepository.TryClaimAsync(task.Id, nowUtc, cancellationToken))
             {
                 // Another replica (or a human via the CRUD API) already claimed or changed this task
                 // since FindDueAsync ran - this is the expected, silent outcome of losing the race.
+                continue;
+            }
+
+            if (task is not ExportLoaderTask)
+            {
+                logger.LogWarning(
+                    "Task {TaskCode} has unsupported {TypeId}, marking Failed", task.Code, task.TypeId);
+                await taskRepository.RecordOutcomeAsync(
+                    task.Id,
+                    TaskStateId.Failed,
+                    dateTimeProvider.Now.UtcDateTime,
+                    $"Unsupported task type {task.TypeId}",
+                    FailureCountUpdate.Increment,
+                    CancellationToken.None);
                 continue;
             }
 
@@ -54,8 +69,14 @@ public class ExportLoaderTaskScheduler(
 
             try
             {
-                SourceResourceLoadResult result = await exportRunner.Run(task, cancellationToken);
-                await repository.RecordOutcomeAsync(
+                // task (from ITaskRepository) never has its DataSource navigation loaded - it's
+                // re-fetched here through IExportLoaderTaskRepository, which Includes it, rather than
+                // passed straight to IExportRunner.Run.
+                ExportLoaderTask exportLoaderTask = await exportLoaderTaskRepository.GetByIdAsync(task.Id, cancellationToken)
+                    ?? throw new InvalidOperationException($"ExportLoaderTask {task.Id} was claimed but no longer exists");
+
+                SourceResourceLoadResult result = await exportRunner.Run(exportLoaderTask, cancellationToken);
+                await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
@@ -66,7 +87,7 @@ public class ExportLoaderTaskScheduler(
             catch (Exception exception)
             {
                 logger.LogError(exception, "ExportLoaderTask {TaskCode} failed", task.Code);
-                await repository.RecordOutcomeAsync(
+                await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Failed,
                     dateTimeProvider.Now.UtcDateTime,

@@ -62,6 +62,28 @@ public class ExportLoaderTaskSchedulerTests(IntegrationTestFixture fixture) : In
     }
 
     [Fact]
+    public async Task DoWork_DueReadyTask_PassesFullyLoadedTaskWithDataSourceToRunner()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportLoaderTaskRepository repository = scope.ServiceProvider.GetRequiredService<IExportLoaderTaskRepository>();
+        ConfigurableExportRunner exportRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportRunner>();
+        ExportLoaderTaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<ExportLoaderTaskScheduler>();
+        ExportLoaderTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
+        ExportLoaderTask? receivedTask = null;
+        exportRunner.Behaviour = (task, _) =>
+        {
+            receivedTask = task;
+            return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
+        };
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.NotNull(receivedTask);
+        Assert.NotNull(receivedTask!.DataSource);
+        Assert.Equal(added.DataSourceId, receivedTask.DataSource.Id);
+    }
+
+    [Fact]
     public async Task DoWork_RunnerThrows_RecordsFailedWithExceptionMessage()
     {
         using IServiceScope scope = Fixture.Services.CreateScope();

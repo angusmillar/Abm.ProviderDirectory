@@ -30,26 +30,4 @@ public interface IExportLoaderTaskRepository
         DateTime? lastStartFrom,
         DateTime? lastStartTo,
         CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
-        DateTime nowUtc,
-        int failureAttemptCount,
-        CancellationToken cancellationToken);
-
-    Task<bool> TryClaimAsync(
-        int id,
-        DateTime nowUtc,
-        CancellationToken cancellationToken);
-
-    Task ReapStaleInProgressAsync(
-        DateTime olderThanUtc,
-        CancellationToken cancellationToken);
-
-    Task RecordOutcomeAsync(
-        int id,
-        TaskStateId state,
-        DateTime nowUtc,
-        string? stateReason,
-        FailureCountUpdate failureCountUpdate,
-        CancellationToken cancellationToken);
 }

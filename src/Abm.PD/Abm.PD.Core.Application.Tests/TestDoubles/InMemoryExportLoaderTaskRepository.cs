@@ -4,9 +4,10 @@ using Abm.PD.Core.Domain.Repositories;
 
 namespace Abm.PD.Core.Application.Tests.TestDoubles;
 
-// Hand rolled, in-memory fake for ExportLoaderTaskScheduler tests that need a real (if simplistic)
-// FindDueAsync/TryClaimAsync/RecordOutcomeAsync/ReapStaleInProgressAsync - no claim atomicity is
-// modelled, this is single-threaded test code driving the scheduler directly.
+// ExportLoaderTaskScheduler re-fetches the fully-loaded ExportLoaderTask by Id after claiming it (see
+// the design spec's "why the claimed instance can't be used directly" callout) - GetByIdAsync must
+// actually work for that flow to be exercised in these tests, unlike the other CRUD members, which
+// nothing here calls.
 public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> tasks) : IExportLoaderTaskRepository
 {
     public Task<IReadOnlyList<ExportLoaderTask>> GetAllAsync(CancellationToken cancellationToken)
@@ -18,7 +19,7 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
         int id,
         CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Task.FromResult(tasks.SingleOrDefault(t => t.Id == id));
     }
 
     public Task<ExportLoaderTask> AddAsync(
@@ -51,79 +52,5 @@ public sealed class InMemoryExportLoaderTaskRepository(List<ExportLoaderTask> ta
         CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
-    }
-
-    public Task<IReadOnlyList<ExportLoaderTask>> FindDueAsync(
-        DateTime nowUtc,
-        int failureAttemptCount,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<ExportLoaderTask> due = tasks
-            .Where(t => t.State == TaskStateId.Ready
-                        || t.State == TaskStateId.Completed
-                        || (t.State == TaskStateId.Failed && t.FailureCount <= failureAttemptCount))
-            .Where(t => t.TriggerEvery > TimeSpan.Zero)
-            .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
-            .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
-            .Where(t => t.LastStart == null || t.LastStart + t.TriggerEvery <= nowUtc)
-            .ToList();
-        return Task.FromResult(due);
-    }
-
-    public Task<bool> TryClaimAsync(
-        int id,
-        DateTime nowUtc,
-        CancellationToken cancellationToken)
-    {
-        ExportLoaderTask? task = tasks.SingleOrDefault(t => t.Id == id);
-        if (task is null || task.State == TaskStateId.InProgress)
-        {
-            return Task.FromResult(false);
-        }
-
-        task.State = TaskStateId.InProgress;
-        task.LastStart = nowUtc;
-        task.StateReason = null;
-        return Task.FromResult(true);
-    }
-
-    public Task ReapStaleInProgressAsync(
-        DateTime olderThanUtc,
-        CancellationToken cancellationToken)
-    {
-        foreach (ExportLoaderTask task in tasks.Where(
-                     t => t.State == TaskStateId.InProgress && t.LastStart != null && t.LastStart < olderThanUtc))
-        {
-            task.State = TaskStateId.Failed;
-            task.StateReason = "Reaped: exceeded expected run duration";
-            task.FailureCount++;
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task RecordOutcomeAsync(
-        int id,
-        TaskStateId state,
-        DateTime nowUtc,
-        string? stateReason,
-        FailureCountUpdate failureCountUpdate,
-        CancellationToken cancellationToken)
-    {
-        ExportLoaderTask? task = tasks.SingleOrDefault(t => t.Id == id);
-        if (task is not null)
-        {
-            task.State = state;
-            task.LastEnd = nowUtc;
-            task.StateReason = stateReason;
-            task.FailureCount = failureCountUpdate switch
-            {
-                FailureCountUpdate.Reset => 0,
-                FailureCountUpdate.Increment => task.FailureCount + 1,
-                _ => task.FailureCount
-            };
-        }
-
-        return Task.CompletedTask;
     }
 }

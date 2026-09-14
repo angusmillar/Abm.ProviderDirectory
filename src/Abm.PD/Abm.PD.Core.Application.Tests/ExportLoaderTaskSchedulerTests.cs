@@ -29,7 +29,7 @@ public class ExportLoaderTaskSchedulerTests
         {
             throw new NotImplementedException();
         }
-        
+
         public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
@@ -68,6 +68,7 @@ public class ExportLoaderTaskSchedulerTests
     {
         ServiceCollection services = new();
         services.AddSingleton<IExportRunner>(exportRunner);
+        services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<ExportLoaderTaskSchedulerSettings>>(
@@ -77,12 +78,6 @@ public class ExportLoaderTaskSchedulerTests
         return services.BuildServiceProvider();
     }
 
-    // Regression test for the finding that ExportLoaderTaskScheduler used to constructor-inject
-    // IExportRunner directly, so one instance served every due task in a tick. IExportRunner (and
-    // the scoped IFhirExporter/IFhirBulkExporter underneath it) is Scoped and stateful - a single
-    // instance's second call to Run would hit FhirBulkExporter's "session already completed" guard.
-    // The fix gives each task its own DI scope; this test proves two due tasks in one DoWork call
-    // are each served by a different IExportRunner instance.
     [Fact]
     public async Task DoWork_TwoDueTasks_EachGetsItsOwnExportRunnerInstance()
     {
@@ -92,6 +87,7 @@ public class ExportLoaderTaskSchedulerTests
         ServiceCollection services = new();
         services.AddSingleton(calls);
         services.AddScoped<IExportRunner, ScopeTrackingExportRunner>();
+        services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<ExportLoaderTaskSchedulerSettings>>(
