@@ -109,14 +109,31 @@ DI (`Abm.PD.Core.Repository/DependencyInjection/ServiceCollectionExtension.cs`):
    `TaskBase`.
 2. `TryClaimAsync(task.Id, ...)` as today — generic, keyed by `Id` alone.
 3. Dispatch on the claimed row's runtime type:
-   - `is ExportTask` → `await exportTaskRepository.GetByIdAsync(task.Id, ct)` (non-null — just claimed)
-     for the fully-loaded instance with `DataSource`, then run the existing scoped `IExportRunner.Run`
-     exactly as today (signature becomes `Run(ExportTask, ct)` — see Part 2).
+   - `is ExportTask` → the pattern-matched `exportTask` from this `is` check is used **only** to
+     identify the branch and read `task.Id` — never passed to `IExportRunner.Run` (see the callout
+     below for why). Instead: `await exportTaskRepository.GetByIdAsync(task.Id, ct)` (non-null — just
+     claimed) for a second, fully-loaded instance with `DataSource` populated, and *that* instance is
+     what gets passed to the existing scoped `IExportRunner.Run` exactly as today (signature becomes
+     `Run(ExportTask, ct)` — see Part 2).
    - unrecognised `TypeId` → log a warning and `RecordOutcomeAsync(..., TaskStateId.Failed,
      $"Unsupported task type {task.TypeId}", FailureCountUpdate.Increment, ...)` rather than throwing —
      a future subtype the scheduler doesn't yet know how to run fails loudly and moves on, instead of
      sitting claimed forever.
 4. `RecordOutcomeAsync` as today, keyed by `task.Id` — unchanged, already `TaskBase`-level.
+
+**Why the claimed instance can't be used directly.** A row materialised off `ITaskRepository` (backed by
+`Set<TaskBase>()`, no `.Include()`s) has its scalar columns and owned types fully populated — TPH puts
+every subtype's own scalar columns on the one `task` table, and owned types like `ExportTask.Parameter`
+are always eagerly joined regardless of `Include` — so `exportTask.DataSourceId` and `exportTask.Parameter`
+off that instance are correct. `exportTask.DataSource` is not: it's a genuine reference navigation to a
+separate `DataSource` entity, not an owned type, and nothing `Include`d it. Despite `ExportTask.DataSource`
+being declared `public required DataSource DataSource { get; set; }`, that `required` is enforced by the
+compiler only against `new`-expressions and constructors in hand-written code — EF Core's materialiser
+doesn't go through that check, so it will silently leave `DataSource` as `null` on an instance it builds
+without an `Include`. `ExportRunner.Run` dereferences `exportTask.DataSource`, so calling it with the
+claimed-but-not-refetched instance would throw a `NullReferenceException` at runtime despite the type
+system claiming that can't happen. The re-fetch through `IExportTaskRepository.GetByIdAsync` (which does
+`.Include(x => x.DataSource)`) is the only instance in this flow that's safe to hand to `Run`.
 
 ### Settings rename
 
@@ -210,12 +227,18 @@ development mode" decision:
   `Abm.PD.Core.Api.Tests/ExportLoaderTasks/` → `TaskSchedulerTests.cs`. The `Api.Tests` copy needs the
   fully-qualified `Abm.PD.Core.Application.TaskScheduler` per the collision note above; the
   `Application.Tests` copy resolves unqualified (same namespace chain).
-- `Abm.PD.Core.Application.Tests/TestDoubles/InMemoryExportLoaderTaskRepository.cs` → replaced by an
-  `InMemoryTaskRepository` implementing `ITaskRepository` over `List<TaskBase>`. Check at implementation
-  time whether `TaskSchedulerTests` still needs a CRUD (`IExportTaskRepository`) fake at all now that the
-  re-fetch path is the only reason `TaskScheduler` depends on it — today's `InMemoryExportLoaderTaskRepository`
-  throws `NotImplementedException` for every CRUD method, so a minimal fake supporting just `GetByIdAsync`
-  may be all that's needed if one is needed at all.
+- `Abm.PD.Core.Application.Tests/TestDoubles/InMemoryExportLoaderTaskRepository.cs` → replaced by two
+  narrower doubles: an `InMemoryTaskRepository` implementing `ITaskRepository` over `List<TaskBase>`
+  (`FindDueAsync`/`TryClaimAsync`/`ReapStaleInProgressAsync`/`RecordOutcomeAsync`, same logic as today),
+  and a minimal `InMemoryExportTaskRepository` implementing `IExportTaskRepository` with a working
+  `GetByIdAsync` — unlike today's fake, this one is *not* a throw-everywhere stub, because
+  `TaskScheduler` unconditionally calls it for the re-fetch (see the callout above): every
+  `TaskSchedulerTests` case needs `GetByIdAsync` to return the seeded `ExportTask` complete with its
+  `DataSource` set, or the test would pass for the wrong reason — `IExportRunner` fakes
+  (`ThrowingExportRunner`/`ScopeTrackingExportRunner`) don't happen to touch `.DataSource`, so a fake
+  that silently returned an instance with `DataSource` null wouldn't fail today's assertions but would
+  hide a real bug. The remaining CRUD methods can stay `NotImplementedException` stubs, as they are
+  today, since nothing in this test class calls them.
 - `Abm.PD.Core.Application.Tests/TestDoubles/ThrowingExportRunner.cs`,
   `ScopeTrackingExportRunner.cs`, `Abm.PD.Core.Api.Tests/TestDoubles/ConfigurableExportRunner.cs`:
   `Run(ExportLoaderTask, ct)` signatures → `Run(ExportTask, ct)`.
@@ -223,6 +246,11 @@ development mode" decision:
 - `Abm.PD.Core.Api.Tests/Fixtures/CoreApiWebApplicationFactory.cs`: config keys
   `"ExportLoaderTaskScheduler:PollInterval"` / `"...:StaleInProgressAfter"` → `"TaskScheduler:..."`
   (Part 1's settings rename, not a Part 2 change, but lands in the same file).
+- New regression case in the `Abm.PD.Core.Api.Tests` copy of `TaskSchedulerTests`: assert that the
+  `ExportTask` reaching `IExportRunner.Run` has a non-null `DataSource` — `ConfigurableExportRunner`'s
+  `Behaviour` callback receives the task passed to `Run`, so the assertion goes inside it. This is the
+  concrete test for the re-fetch behaviour described in the callout above; it would fail if a future
+  change accidentally passed the claimed-but-not-refetched instance to `Run` instead.
 
 ## Out of scope
 
