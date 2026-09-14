@@ -34,6 +34,7 @@ public static class ServiceCollectionExtension
         services.AddScoped<IResourceRepository, ResourceRepository>();
         services.AddScoped<IDataSourceRepository, DataSourceRepository>();
         services.AddScoped<IExportLoaderTaskRepository, ExportLoaderTaskRepository>();
+        services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ISourceResourceRepository, SourceResourceRepository>();
 
         return services;

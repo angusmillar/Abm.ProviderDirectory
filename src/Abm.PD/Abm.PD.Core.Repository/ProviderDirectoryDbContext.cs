@@ -11,6 +11,7 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
     public DbSet<TaskState> TaskStates => Set<TaskState>();
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
     public DbSet<ExportLoaderTask> ExportLoaderTasks => Set<ExportLoaderTask>();
+    public DbSet<TaskBase> Tasks => Set<TaskBase>();
     public DbSet<SourceResource> SourceResources => Set<SourceResource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

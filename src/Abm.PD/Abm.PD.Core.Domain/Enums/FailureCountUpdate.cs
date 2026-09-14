@@ -1,8 +1,8 @@
 namespace Abm.PD.Core.Domain.Enums;
 
 /// <summary>
-/// How IExportLoaderTaskRepository.RecordOutcomeAsync should treat TaskBase.FailureCount for the
-/// outcome being recorded.
+/// How ITaskRepository.RecordOutcomeAsync should treat TaskBase.FailureCount for the outcome being
+/// recorded.
 /// </summary>
 public enum FailureCountUpdate
 {

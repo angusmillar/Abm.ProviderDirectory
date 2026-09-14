@@ -31,6 +31,13 @@ internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<E
             // explicitly instead.
             parameter.WithOwner().HasConstraintName("fk_export_loader_task_parameter_task");
 
+            // Pinned explicitly: EF's naming convention for this owned type's shadow FK/PK resolves
+            // differently once TaskBase becomes directly reachable via ProviderDirectoryDbContext.Tasks
+            // (a bare "id" instead of "export_loader_task_id") - without pinning it, the existing
+            // migrations no longer match the model and EF's PendingModelChangesWarning fails every
+            // test that touches this DbContext.
+            parameter.Property<int>("ExportLoaderTaskId").HasColumnName("export_loader_task_id");
+
             parameter.Property(x => x.Type).HasColumnName("type");
             parameter.Property(x => x.Since).HasColumnName("since");
             parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
