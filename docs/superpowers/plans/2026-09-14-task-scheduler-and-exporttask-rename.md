@@ -79,10 +79,23 @@ the four scheduling operations work identically to their existing `ExportLoaderT
 counterparts, just against `TaskBase`. `ExportLoaderTaskScheduler` still uses the old repository at the
 end of this task — it starts consuming `ITaskRepository` in Task 3.
 
+**Ruling (recorded during execution, not present when this task was first written):** adding
+`DbSet<TaskBase> Tasks` on its own shifts EF Core's owned-type shadow FK/PK column-naming convention for
+`ExportLoaderTask.Parameter` (an owned type in its own table, `export_loader_task_parameter`) from
+`export_loader_task_id` to a bare `id` — confirmed by generating a scratch migration with only the
+`Tasks` DbSet added, which produced a `RenameColumn` operation nothing else in this task asked for. Since
+this task must not introduce any real schema drift (the existing migrations describe
+`export_loader_task_id`, and no new migration is generated until Task 6), `ExportLoaderTaskConfiguration.cs`
+needs one added line pinning that shadow column back to its current name — added to this task's file
+list and given its own step below (Step 6). Task 5 carries the equivalent pin through when it rewrites
+this file to `ExportTaskConfiguration.cs`.
+
 **Files:**
 - Create: `src/Abm.PD/Abm.PD.Core.Domain/Repositories/ITaskRepository.cs`
 - Modify: `src/Abm.PD/Abm.PD.Core.Domain/Enums/FailureCountUpdate.cs` (doc comment only)
 - Modify: `src/Abm.PD/Abm.PD.Core.Repository/ProviderDirectoryDbContext.cs`
+- Modify: `src/Abm.PD/Abm.PD.Core.Repository/Configuration/ExportLoaderTaskConfiguration.cs` (pin the
+  owned-type shadow column name — see the ruling above)
 - Create: `src/Abm.PD/Abm.PD.Core.Repository/Repositories/TaskRepository.cs`
 - Modify: `src/Abm.PD/Abm.PD.Core.Repository/DependencyInjection/ServiceCollectionExtension.cs`
 - Test: `src/Abm.PD/Abm.PD.Core.Api.Tests/ExportLoaderTasks/TaskRepositoryTests.cs` (new)
@@ -96,7 +109,8 @@ end of this task — it starts consuming `ITaskRepository` in Task 3.
   `ReapStaleInProgressAsync(DateTime, CancellationToken) : Task`,
   `RecordOutcomeAsync(int, TaskStateId, DateTime, string?, FailureCountUpdate, CancellationToken) : Task`.
   `ProviderDirectoryDbContext.Tasks : DbSet<TaskBase>`. `TaskRepository : ITaskRepository`, DI-registered
-  as scoped.
+  as scoped. `ExportLoaderTaskConfiguration`'s owned-type mapping gains an explicit shadow FK/PK column
+  pin, with no change to its actual schema output.
 
 - [ ] **Step 1: Write the failing integration test**
 
@@ -511,7 +525,58 @@ with:
     public DbSet<TaskBase> Tasks => Set<TaskBase>();
 ```
 
-- [ ] **Step 6: Create `TaskRepository`**
+- [ ] **Step 6: Pin the owned-type shadow FK/PK column name**
+
+Confirmed during execution: adding the `Tasks` DbSet in Step 5 shifts EF Core's naming convention for
+`ExportLoaderTask.Parameter`'s owned-type shadow FK/PK column from `export_loader_task_id` to a bare
+`id` — verified by generating a scratch migration with only Step 5 applied, which produced an
+unrequested `RenameColumn` operation. Pin it back explicitly so the model's computed shape exactly
+matches what the existing migrations already describe (no schema change, no new migration needed here).
+
+In `src/Abm.PD/Abm.PD.Core.Repository/Configuration/ExportLoaderTaskConfiguration.cs`, replace:
+
+```csharp
+        builder.OwnsOne(x => x.Parameter, parameter =>
+        {
+            parameter.ToTable("export_loader_task_parameter");
+
+            // The auto-generated name for this FK truncates at Postgres's 63-character identifier
+            // limit (fk_export_loader_task_parameter_export_loader_tasks_export_loa) - name it
+            // explicitly instead.
+            parameter.WithOwner().HasConstraintName("fk_export_loader_task_parameter_task");
+
+            parameter.Property(x => x.Type).HasColumnName("type");
+            parameter.Property(x => x.Since).HasColumnName("since");
+            parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
+        });
+```
+
+with:
+
+```csharp
+        builder.OwnsOne(x => x.Parameter, parameter =>
+        {
+            parameter.ToTable("export_loader_task_parameter");
+
+            // The auto-generated name for this FK truncates at Postgres's 63-character identifier
+            // limit (fk_export_loader_task_parameter_export_loader_tasks_export_loa) - name it
+            // explicitly instead.
+            parameter.WithOwner().HasConstraintName("fk_export_loader_task_parameter_task");
+
+            // Pinned explicitly: EF's naming convention for this owned type's shadow FK/PK resolves
+            // differently once TaskBase becomes directly reachable via ProviderDirectoryDbContext.Tasks
+            // (a bare "id" instead of "export_loader_task_id") - without pinning it, the existing
+            // migrations no longer match the model and EF's PendingModelChangesWarning fails every
+            // test that touches this DbContext.
+            parameter.Property<int>("ExportLoaderTaskId").HasColumnName("export_loader_task_id");
+
+            parameter.Property(x => x.Type).HasColumnName("type");
+            parameter.Property(x => x.Since).HasColumnName("since");
+            parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
+        });
+```
+
+- [ ] **Step 7: Create `TaskRepository`**
 
 Create `src/Abm.PD/Abm.PD.Core.Repository/Repositories/TaskRepository.cs`:
 
@@ -613,7 +678,7 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
 }
 ```
 
-- [ ] **Step 7: Register `ITaskRepository` in DI**
+- [ ] **Step 8: Register `ITaskRepository` in DI**
 
 In `src/Abm.PD/Abm.PD.Core.Repository/DependencyInjection/ServiceCollectionExtension.cs`, replace:
 
@@ -634,7 +699,7 @@ with:
         services.AddScoped<ISourceResourceRepository, SourceResourceRepository>();
 ```
 
-- [ ] **Step 8: Build and run the new test file**
+- [ ] **Step 9: Build and run the new test file**
 
 Run: `dotnet build src/Abm.PD/Abm.PD.slnx`
 Expected: 0 errors.
@@ -642,18 +707,19 @@ Expected: 0 errors.
 Run: `dotnet test src/Abm.PD/Abm.PD.Core.Api.Tests --filter FullyQualifiedName~TaskRepositoryTests`
 Expected: all 18 tests PASS.
 
-- [ ] **Step 9: Run the full suite**
+- [ ] **Step 10: Run the full suite**
 
 Run: `dotnet test src/Abm.PD/Abm.PD.slnx`
 Expected: all tests pass (the old `ExportLoaderTaskRepositoryTests`'s scheduling tests still exist and
 still pass too — they're removed in Task 3, not here).
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add src/Abm.PD/Abm.PD.Core.Domain/Repositories/ITaskRepository.cs
 git add src/Abm.PD/Abm.PD.Core.Domain/Enums/FailureCountUpdate.cs
 git add src/Abm.PD/Abm.PD.Core.Repository/ProviderDirectoryDbContext.cs
+git add src/Abm.PD/Abm.PD.Core.Repository/Configuration/ExportLoaderTaskConfiguration.cs
 git add src/Abm.PD/Abm.PD.Core.Repository/Repositories/TaskRepository.cs
 git add src/Abm.PD/Abm.PD.Core.Repository/DependencyInjection/ServiceCollectionExtension.cs
 git add src/Abm.PD/Abm.PD.Core.Api.Tests/ExportLoaderTasks/TaskRepositoryTests.cs
@@ -662,7 +728,10 @@ Add generic ITaskRepository/TaskRepository over TaskBase
 
 Additive only - IExportLoaderTaskRepository is untouched and still owns the
 same four scheduling methods too. TaskScheduler starts consuming the new
-generic repository in the next commit.
+generic repository in the next commit. Pins ExportLoaderTaskConfiguration's
+owned-type shadow FK/PK column name explicitly, since merely adding
+ProviderDirectoryDbContext.Tasks shifts EF's naming convention for it and
+would otherwise silently drift from the existing migrations.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01UMWQENpvJ4gbbbbtmhodF8
@@ -2408,6 +2477,13 @@ internal sealed class ExportTaskConfiguration : IEntityTypeConfiguration<ExportT
             // limit - name it explicitly instead.
             parameter.WithOwner().HasConstraintName("fk_export_task_parameter_task");
 
+            // Pinned explicitly, carried over (renamed) from ExportLoaderTaskConfiguration - see
+            // Task 2's Step 6. EF's naming convention for this owned type's shadow FK/PK resolves to a
+            // bare "id" once TaskBase is reachable via ProviderDirectoryDbContext.Tasks; pinning it
+            // keeps the physical column name consistent with the renamed entity/table rather than
+            // leaving it as an unexplained bare "id".
+            parameter.Property<int>("ExportTaskId").HasColumnName("export_task_id");
+
             parameter.Property(x => x.Type).HasColumnName("type");
             parameter.Property(x => x.Since).HasColumnName("since");
             parameter.Property(x => x.TypeFilterList).HasColumnName("type_filter_list");
@@ -3053,6 +3129,9 @@ Expected: `Build started...`, `Build succeeded.`, `Done.`, and three new files u
 Open the new `<timestamp>_InitialCreate.cs` and confirm its `Up()` method:
 - Creates a table named `export_task_parameter` (not `export_loader_task_parameter`), with primary key
   `pk_export_task_parameter` and foreign key `fk_export_task_parameter_task` referencing `task(id)`.
+  The table's PK/FK column is `export_task_id` — Task 5 Step 4 pins this explicitly on
+  `ExportTaskConfiguration`'s owned-type mapping (carried over from Task 2's Step 6 ruling); if it
+  instead reads a bare `id`, that pin was dropped somewhere and needs restoring before continuing.
 - Creates the `task` table with a nullable `data_source_id` column (unchanged from before — TPH still
   nullifies a derived-type column at the base-table level; `ExportTaskConfiguration`'s own
   `Property(x => x.DataSourceId).IsRequired()` layers a NOT NULL on top of this in the model, but the
