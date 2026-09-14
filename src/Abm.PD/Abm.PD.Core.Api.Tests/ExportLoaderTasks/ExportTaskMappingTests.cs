@@ -7,12 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Abm.PD.Core.Api.Tests.ExportLoaderTasks;
 
-public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
+public class ExportTaskMappingTests(IntegrationTestFixture fixture) : IntegrationTestBase(fixture)
 {
     private readonly IntegrationTestFixture Fixture = fixture;
 
     [Fact]
-    public async Task SaveAndReload_ExportLoaderTask_RoundTripsOwnedParameterAndTypeFilterListArray()
+    public async Task SaveAndReload_ExportTask_RoundTripsOwnedParameterAndTypeFilterListArray()
     {
         DateTime nowUtc = DateTime.UtcNow;
         DataSource dataSource = new()
@@ -29,7 +29,7 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
             await dataSourceContext.SaveChangesAsync();
         }
 
-        ExportLoaderTask task = new()
+        ExportTask task = new()
         {
             Code = "bulk-import-au",
             DisplayName = "Bulk Import AU",
@@ -61,7 +61,7 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
             // change tracker doesn't know about it yet - attach it first so EF recognises it as
             // already-existing (its key is non-default) rather than re-inserting it as new.
             writeContext.Attach(dataSource);
-            writeContext.ExportLoaderTasks.Add(task);
+            writeContext.ExportTasks.Add(task);
             await writeContext.SaveChangesAsync();
         }
 
@@ -70,7 +70,7 @@ public class ExportLoaderTaskMappingTests(IntegrationTestFixture fixture) : Inte
         using IServiceScope readScope = Fixture.Services.CreateScope();
         ProviderDirectoryDbContext readContext =
             readScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
-        ExportLoaderTask reloaded = await readContext.ExportLoaderTasks
+        ExportTask reloaded = await readContext.ExportTasks
             .AsNoTracking()
             .SingleAsync(x => x.Code == "bulk-import-au");
 

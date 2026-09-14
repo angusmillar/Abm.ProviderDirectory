@@ -10,10 +10,10 @@ public sealed class ScopeTrackingExportRunner(List<(int TaskId, Guid InstanceId)
     private readonly Guid InstanceId = Guid.NewGuid();
 
     public Task<SourceResourceLoadResult> Run(
-        ExportLoaderTask exportLoaderTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken)
     {
-        calls.Add((exportLoaderTask.Id, InstanceId));
+        calls.Add((exportTask.Id, InstanceId));
         return Task.FromResult(new SourceResourceLoadResult(
             SubmittedCount: 0, CommittedCount: 0, FailedCount: 0, BatchCount: 0, RetainedFailures: []));
     }

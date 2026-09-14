@@ -8,7 +8,7 @@ namespace Abm.PD.Core.Application.Tests.TestDoubles;
 public sealed class ThrowingExportRunner : IExportRunner
 {
     public Task<SourceResourceLoadResult> Run(
-        ExportLoaderTask exportLoaderTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken)
     {
         throw new InvalidOperationException("Simulated export failure");

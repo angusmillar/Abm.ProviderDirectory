@@ -11,10 +11,10 @@ namespace Abm.PD.Core.Application.Tests;
 
 public class ExportRunnerTests
 {
-    private static ExportLoaderTask NewTask()
+    private static ExportTask NewTask()
     {
         DateTime nowUtc = DateTime.UtcNow;
-        return new ExportLoaderTask
+        return new ExportTask
         {
             Code = "test-task",
             DisplayName = "Test task",
@@ -49,7 +49,7 @@ public class ExportRunnerTests
                 SubmittedCount: 1, CommittedCount: 1, FailedCount: 0, BatchCount: 1, RetainedFailures: []),
         };
         ExportRunner runner = new(NullLogger<ExportRunner>.Instance, fakeExporter, fakeLoader);
-        ExportLoaderTask task = NewTask();
+        ExportTask task = NewTask();
 
         SourceResourceLoadResult result = await runner.Run(task, CancellationToken.None);
 

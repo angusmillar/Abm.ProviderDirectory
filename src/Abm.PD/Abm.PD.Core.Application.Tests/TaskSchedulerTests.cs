@@ -33,13 +33,13 @@ public class TaskSchedulerTests
         public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
     }
 
-    private static ExportLoaderTask NewTask(
+    private static ExportTask NewTask(
         int id,
         string code,
         TaskStateId state = TaskStateId.Ready,
         int failureCount = 0)
     {
-        return new ExportLoaderTask
+        return new ExportTask
         {
             Id = id,
             Code = code,
@@ -62,14 +62,14 @@ public class TaskSchedulerTests
     }
 
     private static ServiceProvider BuildProvider(
-        List<ExportLoaderTask> seededTasks,
+        List<ExportTask> seededTasks,
         IExportRunner exportRunner,
         int failureAttemptCount = 3)
     {
         ServiceCollection services = new();
         services.AddSingleton<IExportRunner>(exportRunner);
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
-        services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
+        services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
@@ -82,13 +82,13 @@ public class TaskSchedulerTests
     public async Task DoWork_TwoDueTasks_EachGetsItsOwnExportRunnerInstance()
     {
         List<(int TaskId, Guid InstanceId)> calls = [];
-        List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one"), NewTask(2, "task-two")];
+        List<ExportTask> seededTasks = [NewTask(1, "task-one"), NewTask(2, "task-two")];
 
         ServiceCollection services = new();
         services.AddSingleton(calls);
         services.AddScoped<IExportRunner, ScopeTrackingExportRunner>();
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
-        services.AddSingleton<IExportLoaderTaskRepository>(new InMemoryExportLoaderTaskRepository(seededTasks));
+        services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));
@@ -110,7 +110,7 @@ public class TaskSchedulerTests
     [Fact]
     public async Task DoWork_RunnerThrows_IncrementsFailureCountAndSetsFailed()
     {
-        List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one")];
+        List<ExportTask> seededTasks = [NewTask(1, "task-one")];
         await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportRunner());
         using IServiceScope tickScope = provider.CreateScope();
         TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
@@ -124,7 +124,7 @@ public class TaskSchedulerTests
     [Fact]
     public async Task DoWork_RunnerSucceeds_ResetsFailureCountToZero()
     {
-        List<ExportLoaderTask> seededTasks = [NewTask(1, "task-one", failureCount: 2)];
+        List<ExportTask> seededTasks = [NewTask(1, "task-one", failureCount: 2)];
         await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportRunner([]));
         using IServiceScope tickScope = provider.CreateScope();
         TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler>();
@@ -139,7 +139,7 @@ public class TaskSchedulerTests
     public async Task DoWork_FailedTaskWithinFailureAttemptCount_IsRun()
     {
         List<(int TaskId, Guid InstanceId)> calls = [];
-        List<ExportLoaderTask> seededTasks =
+        List<ExportTask> seededTasks =
             [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 3)];
         await using ServiceProvider provider = BuildProvider(
             seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
@@ -155,7 +155,7 @@ public class TaskSchedulerTests
     public async Task DoWork_FailedTaskExceedingFailureAttemptCount_IsNotRun()
     {
         List<(int TaskId, Guid InstanceId)> calls = [];
-        List<ExportLoaderTask> seededTasks =
+        List<ExportTask> seededTasks =
             [NewTask(1, "task-one", state: TaskStateId.Failed, failureCount: 4)];
         await using ServiceProvider provider = BuildProvider(
             seededTasks, new ScopeTrackingExportRunner(calls), failureAttemptCount: 3);
