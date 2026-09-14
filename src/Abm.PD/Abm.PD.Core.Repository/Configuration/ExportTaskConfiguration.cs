@@ -10,9 +10,12 @@ internal sealed class ExportTaskConfiguration : IEntityTypeConfiguration<ExportT
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // TPH mapping otherwise nullifies a derived-type column regardless of the CLR property's own
-        // non-nullable int type - explicit Property(...).IsRequired() is needed on top of the
-        // relationship's IsRequired() to actually get a NOT NULL data_source_id column.
+        // IsRequired() here only enforces non-null at the CLR/model layer - a materialised ExportTask
+        // with a null DataSourceId would fail CLR binding, since DataSourceId is a non-nullable int.
+        // It does not make the generated data_source_id column NOT NULL: EF Core's TPH base-table
+        // convention keeps every derived type's columns nullable at the DDL level regardless of a
+        // derived-type IsRequired() call, so the column stays nullable (confirmed by the regenerated
+        // migration, which emits data_source_id as nullable: true).
         builder.Property(x => x.DataSourceId)
             .IsRequired();
 

@@ -4,7 +4,6 @@ using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace Abm.PD.Core.Api.Endpoints;
 

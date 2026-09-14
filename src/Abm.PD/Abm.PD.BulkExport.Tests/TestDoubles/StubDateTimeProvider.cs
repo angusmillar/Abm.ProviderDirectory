@@ -15,13 +15,17 @@ public sealed class StubDateTimeProvider(
     public DateTimeOffset ToServiceOffset(
         DateTime utcDateTime)
     {
-        throw new NotImplementedException();
+        return new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)).ToOffset(ServiceDefaultTimeZone);
     }
 
     public DateTimeOffset? ToServiceOffset(
         DateTime? utcDateTime)
     {
-        throw new NotImplementedException();
+        if (utcDateTime == null)
+        {
+            return null;
+        }
+        return ToServiceOffset(utcDateTime.Value);
     }
 
     public TimeSpan ServiceDefaultTimeZone { get; } = serviceDefaultTimeZone;

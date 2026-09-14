@@ -21,13 +21,17 @@ public class TaskSchedulerTests
         public DateTimeOffset ToServiceOffset(
             DateTime utcDateTime)
         {
-            throw new NotImplementedException();
+            return new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)).ToOffset(ServiceDefaultTimeZone);
         }
 
         public DateTimeOffset? ToServiceOffset(
             DateTime? utcDateTime)
         {
-            throw new NotImplementedException();
+            if (utcDateTime == null)
+            {
+                return null;
+            }
+            return ToServiceOffset(utcDateTime.Value);
         }
 
         public TimeSpan ServiceDefaultTimeZone { get; } = TimeSpan.FromHours(10);
@@ -78,6 +82,12 @@ public class TaskSchedulerTests
         return services.BuildServiceProvider();
     }
 
+    // Regression test: each due task must get its own DI scope, and therefore its own IExportRunner
+    // (and the scoped IFhirExporter/IFhirBulkExporter underneath it). FhirBulkExporter is a stateful,
+    // one-instance-one-export-session service, so sharing a single IExportRunner instance across every
+    // task in a tick - as constructor injection into TaskScheduler would do - previously made every
+    // task after the first fail with "session already completed". ScopeTrackingExportRunner records
+    // its own instance id per call so the two calls below can be asserted as genuinely distinct.
     [Fact]
     public async Task DoWork_TwoDueTasks_EachGetsItsOwnExportRunnerInstance()
     {

@@ -20,6 +20,7 @@ public class TaskRepository(ProviderDirectoryDbContext dbContext) : ITaskReposit
             .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
             .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
             .Where(t => t.LastStart == null || t.LastStart + t.TriggerEvery <= nowUtc)
+            .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 

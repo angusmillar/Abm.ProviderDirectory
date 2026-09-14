@@ -1,7 +1,6 @@
+using Abm.Core.Time;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
-using Abm.Core.Extensions;
-using Abm.Core.Time;
 
 namespace Abm.PD.Core.Api.Contracts;
 
@@ -56,5 +55,4 @@ public record ExportTaskResponse(
                 Since: exportTask.Parameter.Since?.ToOffset(dateTimeProvider.ServiceDefaultTimeZone),
                 TypeFilterList: exportTask.Parameter.TypeFilterList));
     }
-
 }

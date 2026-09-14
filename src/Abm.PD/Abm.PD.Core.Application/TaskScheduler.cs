@@ -45,6 +45,10 @@ public class TaskScheduler(
                 continue;
             }
 
+            // Future-proofing for a second TaskTypeId/discriminator - not reachable today. TPH maps
+            // exactly one discriminator (TaskTypeId.BulkImport -> ExportTask), so an unmapped
+            // discriminator throws during EF materialisation inside FindDueAsync, aborting the whole
+            // tick, rather than degrading to a bare TaskBase that would fall through to this check.
             if (task is not ExportTask)
             {
                 logger.LogWarning(
