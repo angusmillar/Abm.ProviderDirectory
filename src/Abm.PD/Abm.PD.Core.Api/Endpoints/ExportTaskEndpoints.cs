@@ -8,15 +8,15 @@ using Microsoft.Extensions.Options;
 
 namespace Abm.PD.Core.Api.Endpoints;
 
-public static class ExportLoaderTaskEndpoints
+public static class ExportTaskEndpoints
 {
-    public static IEndpointRouteBuilder MapExportLoaderTaskEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapExportTaskEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/ExportLoaderTask", GetAllOrSearch);
-        endpoints.MapGet("/ExportLoaderTask/{id:int}", GetById);
-        endpoints.MapPost("/ExportLoaderTask", Create);
-        endpoints.MapPut("/ExportLoaderTask/{id:int}", Update);
-        endpoints.MapDelete("/ExportLoaderTask/{id:int}", Delete);
+        endpoints.MapGet("/ExportTask", GetAllOrSearch);
+        endpoints.MapGet("/ExportTask/{id:int}", GetById);
+        endpoints.MapPost("/ExportTask", Create);
+        endpoints.MapPut("/ExportTask/{id:int}", Update);
+        endpoints.MapDelete("/ExportTask/{id:int}", Delete);
 
         return endpoints;
     }
@@ -26,38 +26,38 @@ public static class ExportLoaderTaskEndpoints
         TaskStateId? state,
         [FromQuery(Name = "last-start-from")] DateTime? lastStartFrom,
         [FromQuery(Name = "last-start-to")] DateTime? lastStartTo,
-        IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IExportTaskRepository exportTaskRepository,
         IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<ExportLoaderTask> exportLoaderTaskList = code is null && state is null && lastStartFrom is null && lastStartTo is null
-            ? await exportLoaderTaskRepository.GetAllAsync(cancellationToken)
-            : await exportLoaderTaskRepository.SearchAsync(
+        IReadOnlyList<ExportTask> exportTaskList = code is null && state is null && lastStartFrom is null && lastStartTo is null
+            ? await exportTaskRepository.GetAllAsync(cancellationToken)
+            : await exportTaskRepository.SearchAsync(
                 code: code,
                 state: state,
                 lastStartFrom: lastStartFrom,
                 lastStartTo: lastStartTo,
                 cancellationToken: cancellationToken);
 
-        return Results.Ok(exportLoaderTaskList.Select(
-            x => ExportLoaderTaskResponse.FromEntity(x, dateTimeProvider)));
+        return Results.Ok(exportTaskList.Select(
+            x => ExportTaskResponse.FromEntity(x, dateTimeProvider)));
     }
 
     private static async Task<IResult> GetById(
         int id,
-        IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IExportTaskRepository exportTaskRepository,
         IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
-        ExportLoaderTask? exportLoaderTask = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
-        return exportLoaderTask is null
+        ExportTask? exportTask = await exportTaskRepository.GetByIdAsync(id, cancellationToken);
+        return exportTask is null
             ? Results.NotFound()
-            : Results.Ok(ExportLoaderTaskResponse.FromEntity(exportLoaderTask, dateTimeProvider));
+            : Results.Ok(ExportTaskResponse.FromEntity(exportTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Create(
-        ExportLoaderTaskRequest request,
-        IExportLoaderTaskRepository exportLoaderTaskRepository,
+        ExportTaskRequest request,
+        IExportTaskRepository exportTaskRepository,
         IDataSourceRepository dataSourceRepository,
         IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
@@ -70,7 +70,7 @@ public static class ExportLoaderTaskEndpoints
 
         // Code carries a unique index at the database level - checking first turns what would
         // otherwise surface as an unhandled DbUpdateException on SaveChangesAsync into a clear 400.
-        IReadOnlyList<ExportLoaderTask> existingWithCode = await exportLoaderTaskRepository.SearchAsync(
+        IReadOnlyList<ExportTask> existingWithCode = await exportTaskRepository.SearchAsync(
             code: request.Code,
             state: null,
             lastStartFrom: null,
@@ -78,11 +78,11 @@ public static class ExportLoaderTaskEndpoints
             cancellationToken: cancellationToken);
         if (existingWithCode.Count > 0)
         {
-            return Results.BadRequest($"ExportLoaderTask with Code '{request.Code}' already exists");
+            return Results.BadRequest($"ExportTask with Code '{request.Code}' already exists");
         }
 
         DateTime nowUtc = DateTime.UtcNow;
-        ExportLoaderTask exportLoaderTask = new()
+        ExportTask exportTask = new()
         {
             Code = request.Code,
             DisplayName = request.DisplayName,
@@ -111,37 +111,37 @@ public static class ExportLoaderTaskEndpoints
                 TypeFilterList = request.Parameter.TypeFilterList,
             },
         };
-        exportLoaderTask = await exportLoaderTaskRepository.AddAsync(exportLoaderTask, cancellationToken);
+        exportTask = await exportTaskRepository.AddAsync(exportTask, cancellationToken);
         return Results.Created(
-            $"/ExportLoaderTask/{exportLoaderTask.Id}",
-            ExportLoaderTaskResponse.FromEntity(exportLoaderTask, dateTimeProvider));
+            $"/ExportTask/{exportTask.Id}",
+            ExportTaskResponse.FromEntity(exportTask, dateTimeProvider));
     }
 
     private static async Task<IResult> Update(
         int id,
-        ExportLoaderTaskUpdateRequest request,
-        IExportLoaderTaskRepository exportLoaderTaskRepository,
+        ExportTaskUpdateRequest request,
+        IExportTaskRepository exportTaskRepository,
         IDateTimeProvider dateTimeProvider,
         CancellationToken cancellationToken)
     {
-        // Code is deliberately absent from ExportLoaderTaskUpdateRequest - it is immutable after
+        // Code is deliberately absent from ExportTaskUpdateRequest - it is immutable after
         // creation. DataSourceCode is present but is also immutable after creation, so it is
         // validated below against the existing row rather than copied across.
-        ExportLoaderTask? existing = await exportLoaderTaskRepository.GetByIdAsync(id, cancellationToken);
+        ExportTask? existing = await exportTaskRepository.GetByIdAsync(id, cancellationToken);
         if (existing is null)
         {
             return Results.NotFound();
         }
-        
+
         if (existing.State == TaskStateId.InProgress)
         {
-            return Results.BadRequest($"The ExportLoaderTask State={existing.State}', " +
+            return Results.BadRequest($"The ExportTask State={existing.State}', " +
                                       $"can not modify a task while {nameof(TaskStateId.InProgress)} ");
         }
-        
+
         if (!existing.DataSource.Code.Equals(request.DataSourceCode.Trim()))
         {
-            return Results.BadRequest($"The ExportLoaderTask's DataSourceCode: {request.DataSourceCode.Trim()}', " +
+            return Results.BadRequest($"The ExportTask's DataSourceCode: {request.DataSourceCode.Trim()}', " +
                                       $"can not be updated. Current DataSourceCode is {existing.DataSource.Code} ");
         }
 
@@ -160,7 +160,7 @@ public static class ExportLoaderTaskEndpoints
         existing.Parameter.Since = request.Parameter.Since?.ToUniversalTime();
         existing.Parameter.TypeFilterList = request.Parameter.TypeFilterList;
 
-        ExportLoaderTask? updated = await exportLoaderTaskRepository.UpdateAsync(id, existing, cancellationToken);
+        ExportTask? updated = await exportTaskRepository.UpdateAsync(id, existing, cancellationToken);
         if (updated is null)
         {
             return Results.NotFound();
@@ -170,15 +170,15 @@ public static class ExportLoaderTaskEndpoints
         // never changes via update, so carry it over from the already-loaded `existing` rather than
         // returning a response with a null DataSource.
         updated.DataSource = existing.DataSource;
-        return Results.Ok(ExportLoaderTaskResponse.FromEntity(updated, dateTimeProvider));
+        return Results.Ok(ExportTaskResponse.FromEntity(updated, dateTimeProvider));
     }
 
     private static async Task<IResult> Delete(
         int id,
-        IExportLoaderTaskRepository exportLoaderTaskRepository,
+        IExportTaskRepository exportTaskRepository,
         CancellationToken cancellationToken)
     {
-        bool deleted = await exportLoaderTaskRepository.DeleteAsync(id, cancellationToken);
+        bool deleted = await exportTaskRepository.DeleteAsync(id, cancellationToken);
         return deleted
             ? Results.NoContent()
             : Results.NotFound();

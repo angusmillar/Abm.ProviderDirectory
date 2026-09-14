@@ -13,7 +13,7 @@ namespace Abm.PD.Core.Application;
 
 public class TaskScheduler(
     ITaskRepository taskRepository,
-    IExportLoaderTaskRepository exportLoaderTaskRepository,
+    IExportTaskRepository exportTaskRepository,
     IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
     IOptions<TaskSchedulerSettings> settings,
@@ -45,7 +45,7 @@ public class TaskScheduler(
                 continue;
             }
 
-            if (task is not ExportLoaderTask)
+            if (task is not ExportTask)
             {
                 logger.LogWarning(
                     "Task {TaskCode} has unsupported {TypeId}, marking Failed", task.Code, task.TypeId);
@@ -70,12 +70,12 @@ public class TaskScheduler(
             try
             {
                 // task (from ITaskRepository) never has its DataSource navigation loaded - it's
-                // re-fetched here through IExportLoaderTaskRepository, which Includes it, rather than
+                // re-fetched here through IExportTaskRepository, which Includes it, rather than
                 // passed straight to IExportRunner.Run.
-                ExportLoaderTask exportLoaderTask = await exportLoaderTaskRepository.GetByIdAsync(task.Id, cancellationToken)
-                    ?? throw new InvalidOperationException($"ExportLoaderTask {task.Id} was claimed but no longer exists");
+                ExportTask exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
+                    ?? throw new InvalidOperationException($"ExportTask {task.Id} was claimed but no longer exists");
 
-                SourceResourceLoadResult result = await exportRunner.Run(exportLoaderTask, cancellationToken);
+                SourceResourceLoadResult result = await exportRunner.Run(exportTask, cancellationToken);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
@@ -86,7 +86,7 @@ public class TaskScheduler(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "ExportLoaderTask {TaskCode} failed", task.Code);
+                logger.LogError(exception, "ExportTask {TaskCode} failed", task.Code);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Failed,

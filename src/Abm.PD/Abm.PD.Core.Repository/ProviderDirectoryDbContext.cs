@@ -10,7 +10,7 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
     public DbSet<DataSource> DataSource => Set<DataSource>();
     public DbSet<TaskState> TaskStates => Set<TaskState>();
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
-    public DbSet<ExportLoaderTask> ExportLoaderTasks => Set<ExportLoaderTask>();
+    public DbSet<ExportTask> ExportTasks => Set<ExportTask>();
     public DbSet<TaskBase> Tasks => Set<TaskBase>();
     public DbSet<SourceResource> SourceResources => Set<SourceResource>();
 

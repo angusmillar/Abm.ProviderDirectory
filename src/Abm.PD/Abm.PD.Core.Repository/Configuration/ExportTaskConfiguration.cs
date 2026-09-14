@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Abm.PD.Core.Repository.Configuration;
 
-internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<ExportLoaderTask>
+internal sealed class ExportTaskConfiguration : IEntityTypeConfiguration<ExportTask>
 {
-    public void Configure(EntityTypeBuilder<ExportLoaderTask> builder)
+    public void Configure(EntityTypeBuilder<ExportTask> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -24,19 +24,18 @@ internal sealed class ExportLoaderTaskConfiguration : IEntityTypeConfiguration<E
 
         builder.OwnsOne(x => x.Parameter, parameter =>
         {
-            parameter.ToTable("export_loader_task_parameter");
+            parameter.ToTable("export_task_parameter");
 
             // The auto-generated name for this FK truncates at Postgres's 63-character identifier
-            // limit (fk_export_loader_task_parameter_export_loader_tasks_export_loa) - name it
-            // explicitly instead.
-            parameter.WithOwner().HasConstraintName("fk_export_loader_task_parameter_task");
+            // limit - name it explicitly instead.
+            parameter.WithOwner().HasConstraintName("fk_export_task_parameter_task");
 
-            // Pinned explicitly: EF's naming convention for this owned type's shadow FK/PK resolves
-            // differently once TaskBase becomes directly reachable via ProviderDirectoryDbContext.Tasks
-            // (a bare "id" instead of "export_loader_task_id") - without pinning it, the existing
-            // migrations no longer match the model and EF's PendingModelChangesWarning fails every
-            // test that touches this DbContext.
-            parameter.Property<int>("ExportLoaderTaskId").HasColumnName("export_loader_task_id");
+            // Pinned explicitly, carried over (renamed) from ExportLoaderTaskConfiguration - see
+            // Task 2's Step 6. EF's naming convention for this owned type's shadow FK/PK resolves to a
+            // bare "id" once TaskBase is reachable via ProviderDirectoryDbContext.Tasks; pinning it
+            // keeps the physical column name consistent with the renamed entity/table rather than
+            // leaving it as an unexplained bare "id".
+            parameter.Property<int>("ExportTaskId").HasColumnName("export_task_id");
 
             parameter.Property(x => x.Type).HasColumnName("type");
             parameter.Property(x => x.Since).HasColumnName("since");

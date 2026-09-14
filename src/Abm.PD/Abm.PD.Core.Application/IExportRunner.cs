@@ -6,6 +6,6 @@ namespace Abm.PD.Core.Application;
 public interface IExportRunner
 {
     Task<SourceResourceLoadResult> Run(
-        ExportLoaderTask exportLoaderTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken);
 }

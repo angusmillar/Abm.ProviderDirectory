@@ -65,7 +65,7 @@ if (databaseSettings.RunMigrationsOnStartup)
 
 app.MapResourceEndpoints();
 app.MapDataSourceEndpoints();
-app.MapExportLoaderTaskEndpoints();
+app.MapExportTaskEndpoints();
 app.MapHealthCheckEndpoints();
 
 app.Run();

@@ -2,9 +2,9 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Domain.Entities;
 
-public class ExportLoaderTask : TaskBase
+public class ExportTask : TaskBase
 {
-    public ExportLoaderTask()
+    public ExportTask()
         : base(TaskTypeId.BulkImport)
     {
     }

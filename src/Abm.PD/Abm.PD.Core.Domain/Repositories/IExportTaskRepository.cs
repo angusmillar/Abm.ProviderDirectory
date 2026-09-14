@@ -3,28 +3,28 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Domain.Repositories;
 
-public interface IExportLoaderTaskRepository
+public interface IExportTaskRepository
 {
-    Task<IReadOnlyList<ExportLoaderTask>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ExportTask>> GetAllAsync(CancellationToken cancellationToken);
 
-    Task<ExportLoaderTask?> GetByIdAsync(
+    Task<ExportTask?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken);
 
-    Task<ExportLoaderTask> AddAsync(
-        ExportLoaderTask exportLoaderTask,
+    Task<ExportTask> AddAsync(
+        ExportTask exportTask,
         CancellationToken cancellationToken);
 
-    Task<ExportLoaderTask?> UpdateAsync(
+    Task<ExportTask?> UpdateAsync(
         int id,
-        ExportLoaderTask exportLoaderTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ExportLoaderTask>> SearchAsync(
+    Task<IReadOnlyList<ExportTask>> SearchAsync(
         string? code,
         TaskStateId? state,
         DateTime? lastStartFrom,

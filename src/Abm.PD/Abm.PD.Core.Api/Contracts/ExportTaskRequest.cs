@@ -2,7 +2,7 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Api.Contracts;
 
-public record ExportLoaderTaskRequest(
+public record ExportTaskRequest(
     string Code,
     string DisplayName,
     string? Description,
@@ -12,4 +12,4 @@ public record ExportLoaderTaskRequest(
     DateTimeOffset? ToStartAtUtc,
     DateTimeOffset? ToEndAtUtc,
     string DataSourceCode,
-    ExportLoaderTaskParameterRequest Parameter);
+    ExportTaskParameterRequest Parameter);

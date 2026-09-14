@@ -15,10 +15,10 @@ public class ExportRunner(
     ISourceResourceLoader sourceResourceLoader) : IExportRunner
 {
     public async Task<SourceResourceLoadResult> Run(
-        ExportLoaderTask exportLoaderTask,
+        ExportTask exportTask,
         CancellationToken cancellationToken)
     {
-        Parameters parameters = FhirExportQuery.FromParameter(exportLoaderTask.Parameter);
+        Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);
 
         FhirBulkExportManifest? fhirBulkExportManifest =
             await fhirExporter.RequestDownloadManifest(parameters, cancellationToken);
@@ -27,16 +27,16 @@ public class ExportRunner(
         ArgumentNullException.ThrowIfNull(fhirExporter.JobId);
 
         logger.LogInformation(
-            "JobId {JobId} ExportLoaderTask {TaskCode} download manifest received, persisting to source store",
+            "JobId {JobId} ExportTask {TaskCode} download manifest received, persisting to source store",
             fhirExporter.JobId,
-            exportLoaderTask.Code);
+            exportTask.Code);
 
         IAsyncEnumerable<FhirBulkExportResource> streamedExportFileList = fhirExporter.StreamedExportFileList(cancellationToken);
 
         return await sourceResourceLoader.Load(
             exportResources: streamedExportFileList,
             jobId: fhirExporter.JobId,
-            dataSource: exportLoaderTask.DataSource,
+            dataSource: exportTask.DataSource,
             cancellationToken: cancellationToken);
     }
 }
