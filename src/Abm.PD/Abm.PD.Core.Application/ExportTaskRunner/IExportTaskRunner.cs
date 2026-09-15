@@ -7,5 +7,6 @@ public interface IExportTaskRunner
 {
     Task<SourceResourceLoadResult> Run(
         ExportTask exportTask,
+        Guid correlationId,
         CancellationToken cancellationToken);
 }

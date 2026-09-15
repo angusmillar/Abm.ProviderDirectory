@@ -12,6 +12,7 @@ public interface ITaskRepository
 
     Task<bool> TryClaimAsync(
         int id,
+        Guid correlationId,
         DateTime nowUtc,
         CancellationToken cancellationToken);
 

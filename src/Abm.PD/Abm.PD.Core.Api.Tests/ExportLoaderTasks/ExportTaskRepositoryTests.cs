@@ -31,12 +31,12 @@ public class ExportTaskRepositoryTests(IntegrationTestFixture fixture) : Integra
             State = state,
             StateReason = null,
             TriggerEvery = triggerEvery ?? TimeSpan.FromHours(24),
-            ToStartAtUtc = toStartAtUtc,
-            ToEndAtUtc = toEndAtUtc,
+            StartAtUtc = toStartAtUtc,
+            EndAtUtc = toEndAtUtc,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = lastStart,
-            LastEnd = null,
+            LastStartUtc = lastStart,
+            LastEndUtc = null,
             FailureCount = failureCount,
             // When no existing DataSourceId is supplied, a fresh, unsaved DataSource is attached via
             // the navigation property - EF's graph tracking inserts it in the same SaveChanges call
@@ -255,6 +255,6 @@ public class ExportTaskRepositoryTests(IntegrationTestFixture fixture) : Integra
 
         Assert.Contains(results, x => x.Id == matching.Id);
         Assert.DoesNotContain(results, x => x.Id == nonMatching.Id);
-        Assert.All(results, x => Assert.InRange(x.LastStart!.Value, rangeFrom, rangeTo));
+        Assert.All(results, x => Assert.InRange(x.LastStartUtc!.Value, rangeFrom, rangeTo));
     }
 }

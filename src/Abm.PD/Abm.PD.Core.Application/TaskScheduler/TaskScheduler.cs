@@ -39,7 +39,11 @@ public class TaskScheduler(
 
         foreach (TaskBase task in dueTaskList)
         {
-            if (!await taskRepository.TryClaimAsync(task.Id, nowUtc, cancellationToken))
+            // Our own identifier for this run, independent of the FHIR bulk export server's JobId -
+            // see the doc comment on TaskBase.LastCorrelationId. Minted here so TryClaimAsync can
+            // persist it onto the task as part of the claim itself, rather than a later write.
+            Guid correlationId = Guid.CreateVersion7();
+            if (!await taskRepository.TryClaimAsync(task.Id, correlationId, nowUtc, cancellationToken))
             {
                 // Another replica (or a human via the CRUD API) already claimed or changed this task
                 // since FindDueAsync ran - this is the expected, silent outcome of losing the race.
@@ -47,9 +51,10 @@ public class TaskScheduler(
             }
 
             // Future-proofing for a second TaskTypeId/discriminator - not reachable today. TPH maps
-            // exactly one discriminator (TaskTypeId.BulkImport -> ExportTask), so an unmapped
-            // discriminator throws during EF materialisation inside FindDueAsync, aborting the whole
-            // tick, rather than degrading to a bare TaskBase that would fall through to this check.
+            // only TaskTypeId.ExportTask -> ExportTask; MatchingTask and ImportTask exist on the enum
+            // but have no mapped CLR subtype yet, so a row carrying either TypeId would throw during EF
+            // materialisation inside FindDueAsync, aborting the whole tick, rather than degrading to a
+            // bare TaskBase that would fall through to this check.
             if (task is not ExportTask)
             {
                 logger.LogWarning(
@@ -60,7 +65,7 @@ public class TaskScheduler(
                     dateTimeProvider.Now.UtcDateTime,
                     $"Unsupported task type {task.TypeId}",
                     FailureCountUpdate.Increment,
-                    correlationId: null,
+                    correlationId,
                     CancellationToken.None);
                 continue;
             }
@@ -73,25 +78,22 @@ public class TaskScheduler(
             using IServiceScope taskScope = serviceScopeFactory.CreateScope();
             IExportTaskRunner exportTaskRunner = taskScope.ServiceProvider.GetRequiredService<IExportTaskRunner>();
 
-            // Declared outside the try block so the catch below can still report the CorrelationId that
-            // ExportTaskTaskRunner.Run mints on exportTask, even when Run itself is what threw.
-            ExportTask? exportTask = null;
             try
             {
                 // task (from ITaskRepository) never has its DataSource navigation loaded - it's
                 // re-fetched here through IExportTaskRepository, which Includes it, rather than
                 // passed straight to IExportRunner.Run.
-                exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
+                ExportTask exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
                     ?? throw new InvalidOperationException($"ExportTask {task.Id} was claimed but no longer exists");
 
-                SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, cancellationToken);
+                SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, correlationId, cancellationToken);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
                     $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
                     FailureCountUpdate.Reset,
-                    exportTask.LastCorrelationId,
+                    correlationId,
                     CancellationToken.None);
             }
             catch (Exception exception)
@@ -103,7 +105,7 @@ public class TaskScheduler(
                     dateTimeProvider.Now.UtcDateTime,
                     exception.Message,
                     FailureCountUpdate.Increment,
-                    exportTask?.LastCorrelationId,
+                    correlationId,
                     CancellationToken.None);
             }
         }

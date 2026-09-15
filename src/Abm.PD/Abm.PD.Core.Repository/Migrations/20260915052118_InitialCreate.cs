@@ -73,7 +73,7 @@ namespace Abm.PD.Core.Repository.Migrations
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    job_id = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    correlation_id = table.Column<Guid>(type: "uuid", nullable: false),
                     resource_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     resource_id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     resource_last_updated = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
@@ -106,13 +106,16 @@ namespace Abm.PD.Core.Repository.Migrations
                     state = table.Column<int>(type: "integer", nullable: false),
                     state_reason = table.Column<string>(type: "text", nullable: true),
                     trigger_every = table.Column<TimeSpan>(type: "interval", nullable: false),
-                    to_start_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    to_end_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    start_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    end_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     created_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    last_start = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    last_end = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    last_start_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    last_end_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     failure_count = table.Column<int>(type: "integer", nullable: false),
+                    run_count = table.Column<int>(type: "integer", nullable: false),
+                    max_run_count = table.Column<int>(type: "integer", nullable: true),
+                    last_correlation_id = table.Column<Guid>(type: "uuid", nullable: true),
                     data_source_id = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
@@ -161,7 +164,12 @@ namespace Abm.PD.Core.Repository.Migrations
             migrationBuilder.InsertData(
                 table: "task_type",
                 columns: new[] { "task_type_id", "name" },
-                values: new object[] { 1, "BulkImport" });
+                values: new object[,]
+                {
+                    { 1, "ExportTask" },
+                    { 2, "MatchingTask" },
+                    { 3, "ImportTask" }
+                });
 
             migrationBuilder.CreateIndex(
                 name: "ix_data_source_code",
@@ -170,15 +178,15 @@ namespace Abm.PD.Core.Repository.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ix_source_resource_correlation_id_resource_type_resource_id",
+                table: "source_resource",
+                columns: new[] { "correlation_id", "resource_type", "resource_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "ix_source_resource_data_source_id",
                 table: "source_resource",
                 column: "data_source_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_source_resource_job_id_resource_type_resource_id",
-                table: "source_resource",
-                columns: new[] { "job_id", "resource_type", "resource_id" },
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_task_code",

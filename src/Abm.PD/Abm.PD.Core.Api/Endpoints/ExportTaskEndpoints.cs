@@ -93,12 +93,13 @@ public static class ExportTaskEndpoints
             // sent - Npgsql rejects a DateTime with Kind=Local or Unspecified for a "timestamp with
             // time zone" column, which a plain DateTime? here could otherwise carry depending on how
             // the incoming JSON's offset was parsed.
-            ToStartAtUtc = request.ToStartAtUtc?.UtcDateTime,
-            ToEndAtUtc = request.ToEndAtUtc?.UtcDateTime,
+            StartAtUtc = request.StartAtUtc?.UtcDateTime,
+            EndAtUtc = request.EndAtUtc?.UtcDateTime,
+            MaxRunCount = request.MaxRunCount,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = null,
-            LastEnd = null,
+            LastStartUtc = null,
+            LastEndUtc = null,
             DataSourceId = dataSourceList.First().Id,
             DataSource = dataSourceList.First(),
             Parameter = new ExportParameter
@@ -149,8 +150,9 @@ public static class ExportTaskEndpoints
         existing.State = request.State;
         existing.StateReason = request.StateReason;
         existing.TriggerEvery = request.TriggerEvery;
-        existing.ToStartAtUtc = request.ToStartAtUtc?.UtcDateTime;
-        existing.ToEndAtUtc = request.ToEndAtUtc?.UtcDateTime;
+        existing.StartAtUtc = request.StartAtUtc?.UtcDateTime;
+        existing.EndAtUtc = request.EndAtUtc?.UtcDateTime;
+        existing.MaxRunCount = request.MaxRunCount;
         existing.UpdatedUtc = DateTime.UtcNow;
         existing.Parameter.Type = request.Parameter.Type;
         // Npgsql only accepts DateTimeOffset.Offset == 0 for a "timestamp with time zone" column -

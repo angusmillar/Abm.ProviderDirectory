@@ -10,9 +10,10 @@ namespace Abm.PD.Core.Api.Contracts;
 /// surfaced as a DateTimeOffset, so API consumers see it as wall-clock local time without losing the
 /// absolute instant. This response can be PUT straight back to <c>/ExportTask/{id}</c> -
 /// <see cref="ExportTaskUpdateRequest"/> deliberately omits the server-controlled fields here
-/// (Id, TypeId, Code, CreatedUtc, UpdatedUtc, LastStartUtc, LastEndUtc) so they are silently ignored
-/// rather than erroring the update. DataSourceCode is present on both, but immutable after creation -
-/// the update handler rejects a PUT that tries to change it.
+/// (Id, TypeId, Code, CreatedUtc, UpdatedUtc, LastStartUtc, LastEndUtc, FailureCount, RunCount,
+/// LastCorrelationId) so they are silently ignored rather than erroring the update. DataSourceCode is
+/// present on both, but immutable after creation - the update handler rejects a PUT that tries to
+/// change it.
 /// </summary>
 public record ExportTaskResponse(
     int Id,
@@ -23,12 +24,16 @@ public record ExportTaskResponse(
     TaskStateId State,
     string? StateReason,
     TimeSpan TriggerEvery,
-    DateTimeOffset? ToStartAtUtc,
-    DateTimeOffset? ToEndAtUtc,
+    DateTimeOffset? StartAtUtc,
+    DateTimeOffset? EndAtUtc,
     DateTimeOffset CreatedUtc,
     DateTimeOffset UpdatedUtc,
     DateTimeOffset? LastStartUtc,
     DateTimeOffset? LastEndUtc,
+    int FailureCount,
+    int RunCount,
+    int? MaxRunCount,
+    Guid? LastCorrelationId,
     string DataSourceCode,
     ExportTaskParameterRequest Parameter)
 {
@@ -43,12 +48,16 @@ public record ExportTaskResponse(
             State: exportTask.State,
             StateReason: exportTask.StateReason,
             TriggerEvery: exportTask.TriggerEvery,
-            ToStartAtUtc: dateTimeProvider.ToServiceOffset(exportTask.ToStartAtUtc),
-            ToEndAtUtc: dateTimeProvider.ToServiceOffset(exportTask.ToEndAtUtc),
+            StartAtUtc: dateTimeProvider.ToServiceOffset(exportTask.StartAtUtc),
+            EndAtUtc: dateTimeProvider.ToServiceOffset(exportTask.EndAtUtc),
             CreatedUtc: dateTimeProvider.ToServiceOffset(exportTask.CreatedUtc),
             UpdatedUtc: dateTimeProvider.ToServiceOffset(exportTask.UpdatedUtc),
-            LastStartUtc: dateTimeProvider.ToServiceOffset(exportTask.LastStart),
-            LastEndUtc: dateTimeProvider.ToServiceOffset(exportTask.LastEnd),
+            LastStartUtc: dateTimeProvider.ToServiceOffset(exportTask.LastStartUtc),
+            LastEndUtc: dateTimeProvider.ToServiceOffset(exportTask.LastEndUtc),
+            FailureCount: exportTask.FailureCount,
+            RunCount: exportTask.RunCount,
+            MaxRunCount: exportTask.MaxRunCount,
+            LastCorrelationId: exportTask.LastCorrelationId,
             DataSourceCode: exportTask.DataSource.Code,
             Parameter: new ExportTaskParameterRequest(
                 Type: exportTask.Parameter.Type,

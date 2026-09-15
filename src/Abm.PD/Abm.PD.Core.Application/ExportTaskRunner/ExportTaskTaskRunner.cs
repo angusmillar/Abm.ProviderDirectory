@@ -14,13 +14,15 @@ public class ExportTaskTaskRunner(
 {
     public async Task<SourceResourceLoadResult> Run(
         ExportTask exportTask,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
-        // Our own identifier for this run, independent of the FHIR bulk export server's JobId below -
-        // see the doc comment on TaskBase.LastCorrelationId.
-        Guid correlationId = Guid.CreateVersion7();
-        exportTask.LastCorrelationId = correlationId;
-
+        logger.LogInformation(
+            "Running {TaskType}: {DisplayName} with CorrelationId {CorrelationId} ",
+            exportTask.TypeId,
+            exportTask.DisplayName,
+            correlationId);
+        
         Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);
 
         FhirBulkExportManifest? fhirBulkExportManifest =

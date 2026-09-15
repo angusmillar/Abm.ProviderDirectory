@@ -24,6 +24,6 @@ internal sealed class TaskBaseConfiguration : IEntityTypeConfiguration<TaskBase>
             .IsUnique();
 
         builder.HasDiscriminator(x => x.TypeId)
-            .HasValue<ExportTask>(TaskTypeId.BulkImport);
+            .HasValue<ExportTask>(TaskTypeId.ExportTask);
     }
 }

@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260914141721_InitialCreate")]
+    [Migration("20260915052118_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -90,6 +90,10 @@ namespace Abm.PD.Core.Repository.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_utc");
@@ -97,12 +101,6 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.Property<int>("DataSourceId")
                         .HasColumnType("integer")
                         .HasColumnName("data_source_id");
-
-                    b.Property<string>("JobId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("job_id");
 
                     b.Property<string>("Resource")
                         .IsRequired()
@@ -135,9 +133,9 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.HasIndex("DataSourceId")
                         .HasDatabaseName("ix_source_resource_data_source_id");
 
-                    b.HasIndex("JobId", "ResourceType", "ResourceId")
+                    b.HasIndex("CorrelationId", "ResourceType", "ResourceId")
                         .IsUnique()
-                        .HasDatabaseName("ix_source_resource_job_id_resource_type_resource_id");
+                        .HasDatabaseName("ix_source_resource_correlation_id_resource_type_resource_id");
 
                     b.ToTable("source_resource", (string)null);
                 });
@@ -170,17 +168,37 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("display_name");
 
+                    b.Property<DateTime?>("EndAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at_utc");
+
                     b.Property<int>("FailureCount")
                         .HasColumnType("integer")
                         .HasColumnName("failure_count");
 
-                    b.Property<DateTime?>("LastEnd")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_end");
+                    b.Property<Guid?>("LastCorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_correlation_id");
 
-                    b.Property<DateTime?>("LastStart")
+                    b.Property<DateTime?>("LastEndUtc")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_start");
+                        .HasColumnName("last_end_utc");
+
+                    b.Property<DateTime?>("LastStartUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_start_utc");
+
+                    b.Property<int?>("MaxRunCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_run_count");
+
+                    b.Property<int>("RunCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_count");
+
+                    b.Property<DateTime?>("StartAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at_utc");
 
                     b.Property<int>("State")
                         .HasColumnType("integer")
@@ -189,14 +207,6 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.Property<string>("StateReason")
                         .HasColumnType("text")
                         .HasColumnName("state_reason");
-
-                    b.Property<DateTime?>("ToEndAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("to_end_at_utc");
-
-                    b.Property<DateTime?>("ToStartAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("to_start_at_utc");
 
                     b.Property<TimeSpan>("TriggerEvery")
                         .HasColumnType("interval")
@@ -290,7 +300,17 @@ namespace Abm.PD.Core.Repository.Migrations
                         new
                         {
                             TaskTypeId = 1,
-                            Name = "BulkImport"
+                            Name = "ExportTask"
+                        },
+                        new
+                        {
+                            TaskTypeId = 2,
+                            Name = "MatchingTask"
+                        },
+                        new
+                        {
+                            TaskTypeId = 3,
+                            Name = "ImportTask"
                         });
                 });
 

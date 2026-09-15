@@ -37,12 +37,12 @@ public class ExportTaskMappingTests(IntegrationTestFixture fixture) : Integratio
             State = TaskStateId.Ready,
             StateReason = null,
             TriggerEvery = TimeSpan.FromHours(24),
-            ToStartAtUtc = null,
-            ToEndAtUtc = null,
+            StartAtUtc = null,
+            EndAtUtc = null,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = null,
-            LastEnd = null,
+            LastStartUtc = null,
+            LastEndUtc = null,
             DataSourceId = dataSource.Id,
             DataSource = dataSource,
             Parameter = new ExportParameter
@@ -76,7 +76,7 @@ public class ExportTaskMappingTests(IntegrationTestFixture fixture) : Integratio
 
         Assert.Equal(task.DisplayName, reloaded.DisplayName);
         Assert.Equal(TaskStateId.Ready, reloaded.State);
-        Assert.Equal(TaskTypeId.BulkImport, reloaded.TypeId);
+        Assert.Equal(TaskTypeId.ExportTask, reloaded.TypeId);
         Assert.Equal(new[] { "Patient", "Practitioner" }, reloaded.Parameter.TypeFilterList);
         Assert.Equal(dataSource.Id, reloaded.DataSourceId);
     }

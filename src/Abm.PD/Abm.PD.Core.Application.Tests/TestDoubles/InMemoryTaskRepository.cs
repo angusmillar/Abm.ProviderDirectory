@@ -19,15 +19,17 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
                         || t.State == TaskStateId.Completed
                         || (t.State == TaskStateId.Failed && t.FailureCount <= failureAttemptCount))
             .Where(t => t.TriggerEvery > TimeSpan.Zero)
-            .Where(t => t.ToStartAtUtc == null || t.ToStartAtUtc <= nowUtc)
-            .Where(t => t.ToEndAtUtc == null || t.ToEndAtUtc >= nowUtc)
-            .Where(t => t.LastStart == null || t.LastStart + t.TriggerEvery <= nowUtc)
+            .Where(t => t.StartAtUtc == null || t.StartAtUtc <= nowUtc)
+            .Where(t => t.EndAtUtc == null || t.EndAtUtc >= nowUtc)
+            .Where(t => t.LastStartUtc == null || t.LastStartUtc + t.TriggerEvery <= nowUtc)
+            .Where(t => t.MaxRunCount == null || t.RunCount < t.MaxRunCount)
             .ToList();
         return Task.FromResult(due);
     }
 
     public Task<bool> TryClaimAsync(
         int id,
+        Guid correlationId,
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
@@ -38,8 +40,9 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
         }
 
         task.State = TaskStateId.InProgress;
-        task.LastStart = nowUtc;
+        task.LastStartUtc = nowUtc;
         task.StateReason = null;
+        task.LastCorrelationId = correlationId;
         return Task.FromResult(true);
     }
 
@@ -48,7 +51,7 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
         CancellationToken cancellationToken)
     {
         foreach (TaskBase task in tasks.Where(
-                     t => t.State == TaskStateId.InProgress && t.LastStart != null && t.LastStart < olderThanUtc))
+                     t => t.State == TaskStateId.InProgress && t.LastStartUtc != null && t.LastStartUtc < olderThanUtc))
         {
             task.State = TaskStateId.Failed;
             task.StateReason = "Reaped: exceeded expected run duration";
@@ -71,7 +74,7 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
         if (task is not null)
         {
             task.State = state;
-            task.LastEnd = nowUtc;
+            task.LastEndUtc = nowUtc;
             task.StateReason = stateReason;
             task.LastCorrelationId = correlationId;
             task.FailureCount = failureCountUpdate switch
@@ -80,6 +83,10 @@ public sealed class InMemoryTaskRepository(List<TaskBase> tasks) : ITaskReposito
                 FailureCountUpdate.Increment => task.FailureCount + 1,
                 _ => task.FailureCount
             };
+            if (state == TaskStateId.Completed)
+            {
+                task.RunCount++;
+            }
         }
 
         return Task.CompletedTask;

@@ -29,12 +29,12 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
             State = state,
             StateReason = null,
             TriggerEvery = triggerEvery ?? TimeSpan.FromHours(24),
-            ToStartAtUtc = null,
-            ToEndAtUtc = null,
+            StartAtUtc = null,
+            EndAtUtc = null,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = lastStart,
-            LastEnd = null,
+            LastStartUtc = lastStart,
+            LastEndUtc = null,
             FailureCount = failureCount,
             DataSourceId = 0,
             DataSource = new DataSource { Code = Guid.NewGuid().ToString(), DisplayName = "Test Data Source" },
@@ -50,7 +50,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
         TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
-        exportTaskRunner.Behaviour = (_, _) => Task.FromResult(
+        exportTaskRunner.Behaviour = (_, _, _) => Task.FromResult(
             new SourceResourceLoadResult(SubmittedCount: 5, CommittedCount: 4, FailedCount: 1, BatchCount: 1, RetainedFailures: []));
 
         await scheduler.DoWork(CancellationToken.None);
@@ -58,8 +58,9 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ExportTask? updated = await repository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.NotNull(updated);
         Assert.Equal(TaskStateId.Completed, updated!.State);
-        Assert.NotNull(updated.LastEnd);
+        Assert.NotNull(updated.LastEndUtc);
         Assert.Equal("Persisted 4 of 5, 1 failed", updated.StateReason);
+        Assert.Equal(1, updated.RunCount);
     }
 
     [Fact]
@@ -71,7 +72,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
         ExportTask? receivedTask = null;
-        exportTaskRunner.Behaviour = (task, _) =>
+        exportTaskRunner.Behaviour = (task, _, _) =>
         {
             receivedTask = task;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -92,7 +93,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ConfigurableExportTaskRunner exportTaskRunner = scope.ServiceProvider.GetRequiredService<ConfigurableExportTaskRunner>();
         TaskScheduler scheduler = scope.ServiceProvider.GetRequiredService<TaskScheduler>();
         ExportTask added = await repository.AddAsync(NewTask(), CancellationToken.None);
-        exportTaskRunner.Behaviour = (_, _) => throw new InvalidOperationException("SIT server unreachable");
+        exportTaskRunner.Behaviour = (_, _, _) => throw new InvalidOperationException("SIT server unreachable");
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -113,7 +114,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ExportTask added = await repository.AddAsync(
             NewTask(lastStart: DateTime.UtcNow, triggerEvery: TimeSpan.FromHours(1)), CancellationToken.None);
         bool wasCalled = false;
-        exportTaskRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -137,7 +138,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         // stale is comfortably past that without needing to wait in real time.
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.InProgress, lastStart: DateTime.UtcNow.AddMinutes(-10)), CancellationToken.None);
-        exportTaskRunner.Behaviour = (_, _) => Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
+        exportTaskRunner.Behaviour = (_, _, _) => Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
 
         await scheduler.DoWork(CancellationToken.None);
 
@@ -160,7 +161,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.Failed, failureCount: 3), CancellationToken.None);
         bool wasCalled = false;
-        exportTaskRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));
@@ -184,7 +185,7 @@ public class TaskSchedulerTests(IntegrationTestFixture fixture) : IntegrationTes
         ExportTask added = await repository.AddAsync(
             NewTask(state: TaskStateId.Failed, failureCount: 4), CancellationToken.None);
         bool wasCalled = false;
-        exportTaskRunner.Behaviour = (_, _) =>
+        exportTaskRunner.Behaviour = (_, _, _) =>
         {
             wasCalled = true;
             return Task.FromResult(new SourceResourceLoadResult(0, 0, 0, 0, []));

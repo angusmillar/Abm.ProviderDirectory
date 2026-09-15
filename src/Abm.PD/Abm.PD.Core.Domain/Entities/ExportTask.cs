@@ -5,7 +5,7 @@ namespace Abm.PD.Core.Domain.Entities;
 public class ExportTask : TaskBase
 {
     public ExportTask()
-        : base(TaskTypeId.BulkImport)
+        : base(TaskTypeId.ExportTask)
     {
     }
 

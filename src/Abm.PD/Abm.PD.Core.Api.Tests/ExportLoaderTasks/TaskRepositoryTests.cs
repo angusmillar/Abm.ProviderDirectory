@@ -17,7 +17,9 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
         TimeSpan? triggerEvery = null,
         DateTime? toStartAtUtc = null,
         DateTime? toEndAtUtc = null,
-        int failureCount = 0)
+        int failureCount = 0,
+        int runCount = 0,
+        int? maxRunCount = null)
     {
         DateTime nowUtc = DateTime.UtcNow;
         return new ExportTask
@@ -28,13 +30,15 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
             State = state,
             StateReason = null,
             TriggerEvery = triggerEvery ?? TimeSpan.FromHours(24),
-            ToStartAtUtc = toStartAtUtc,
-            ToEndAtUtc = toEndAtUtc,
+            StartAtUtc = toStartAtUtc,
+            EndAtUtc = toEndAtUtc,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = lastStart,
-            LastEnd = null,
+            LastStartUtc = lastStart,
+            LastEndUtc = null,
             FailureCount = failureCount,
+            RunCount = runCount,
+            MaxRunCount = maxRunCount,
             DataSourceId = 0,
             DataSource = new DataSource { Code = Guid.NewGuid().ToString(), DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
@@ -177,6 +181,48 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
     }
 
     [Fact]
+    public async Task FindDueAsync_RunCountReachedMaxRunCount_IsNotDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportTaskRepository exportTaskRepository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
+        ITaskRepository taskRepository = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        ExportTask added = await exportTaskRepository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), runCount: 3, maxRunCount: 3), CancellationToken.None);
+
+        IReadOnlyList<TaskBase> due = await taskRepository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
+
+        Assert.DoesNotContain(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_RunCountBelowMaxRunCount_IsDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportTaskRepository exportTaskRepository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
+        ITaskRepository taskRepository = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        ExportTask added = await exportTaskRepository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), runCount: 2, maxRunCount: 3), CancellationToken.None);
+
+        IReadOnlyList<TaskBase> due = await taskRepository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
+
+        Assert.Contains(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
+    public async Task FindDueAsync_NullMaxRunCount_IsAlwaysDue()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportTaskRepository exportTaskRepository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
+        ITaskRepository taskRepository = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        ExportTask added = await exportTaskRepository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), runCount: 1000, maxRunCount: null), CancellationToken.None);
+
+        IReadOnlyList<TaskBase> due = await taskRepository.FindDueAsync(DateTime.UtcNow, failureAttemptCount: 3, CancellationToken.None);
+
+        Assert.Contains(due, x => x.Id == added.Id);
+    }
+
+    [Fact]
     public async Task FindDueAsync_ZeroTriggerEvery_IsNotDue()
     {
         using IServiceScope scope = Fixture.Services.CreateScope();
@@ -198,13 +244,15 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
         ITaskRepository taskRepository = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
         ExportTask added = await exportTaskRepository.AddAsync(NewTask(Guid.NewGuid().ToString()), CancellationToken.None);
         DateTime claimTime = new(DateTime.UtcNow.Ticks / 10 * 10, DateTimeKind.Utc);
+        Guid correlationId = Guid.CreateVersion7();
 
-        bool claimed = await taskRepository.TryClaimAsync(added.Id, claimTime, CancellationToken.None);
+        bool claimed = await taskRepository.TryClaimAsync(added.Id, correlationId, claimTime, CancellationToken.None);
 
         Assert.True(claimed);
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.InProgress, fetched!.State);
-        Assert.Equal(claimTime, fetched.LastStart);
+        Assert.Equal(claimTime, fetched.LastStartUtc);
+        Assert.Equal(correlationId, fetched.LastCorrelationId);
     }
 
     [Fact]
@@ -216,7 +264,7 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
         ExportTask added = await exportTaskRepository.AddAsync(
             NewTask(Guid.NewGuid().ToString(), state: TaskStateId.Failed, failureCount: 1), CancellationToken.None);
 
-        bool claimed = await taskRepository.TryClaimAsync(added.Id, DateTime.UtcNow, CancellationToken.None);
+        bool claimed = await taskRepository.TryClaimAsync(added.Id, Guid.CreateVersion7(), DateTime.UtcNow, CancellationToken.None);
 
         Assert.True(claimed);
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
@@ -234,11 +282,11 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
             NewTask(Guid.NewGuid().ToString(), state: TaskStateId.InProgress, lastStart: originalLastStart),
             CancellationToken.None);
 
-        bool claimed = await taskRepository.TryClaimAsync(added.Id, DateTime.UtcNow, CancellationToken.None);
+        bool claimed = await taskRepository.TryClaimAsync(added.Id, Guid.CreateVersion7(), DateTime.UtcNow, CancellationToken.None);
 
         Assert.False(claimed);
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
-        Assert.Equal(originalLastStart, fetched!.LastStart);
+        Assert.Equal(originalLastStart, fetched!.LastStartUtc);
     }
 
     [Fact]
@@ -294,8 +342,9 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(TaskStateId.Completed, fetched!.State);
         Assert.Equal("Committed 4 of 5, 1 failed", fetched.StateReason);
-        Assert.Equal(endTime, fetched.LastEnd);
+        Assert.Equal(endTime, fetched.LastEndUtc);
         Assert.Equal(correlationId, fetched.LastCorrelationId);
+        Assert.Equal(1, fetched.RunCount);
     }
 
     [Fact]
@@ -328,5 +377,21 @@ public class TaskRepositoryTests(IntegrationTestFixture fixture) : IntegrationTe
 
         ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
         Assert.Equal(2, fetched!.FailureCount);
+    }
+
+    [Fact]
+    public async Task RecordOutcomeAsync_Failed_LeavesRunCountUnchanged()
+    {
+        using IServiceScope scope = Fixture.Services.CreateScope();
+        IExportTaskRepository exportTaskRepository = scope.ServiceProvider.GetRequiredService<IExportTaskRepository>();
+        ITaskRepository taskRepository = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        ExportTask added = await exportTaskRepository.AddAsync(
+            NewTask(Guid.NewGuid().ToString(), runCount: 1), CancellationToken.None);
+
+        await taskRepository.RecordOutcomeAsync(
+            added.Id, TaskStateId.Failed, DateTime.UtcNow, "boom", FailureCountUpdate.Increment, Guid.CreateVersion7(), CancellationToken.None);
+
+        ExportTask? fetched = await exportTaskRepository.GetByIdAsync(added.Id, CancellationToken.None);
+        Assert.Equal(1, fetched!.RunCount);
     }
 }

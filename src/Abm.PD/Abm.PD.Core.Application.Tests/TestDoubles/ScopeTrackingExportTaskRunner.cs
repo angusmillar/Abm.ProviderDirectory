@@ -12,6 +12,7 @@ public sealed class ScopeTrackingExportTaskRunner(List<(int TaskId, Guid Instanc
 
     public Task<SourceResourceLoadResult> Run(
         ExportTask exportTask,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         calls.Add((exportTask.Id, InstanceId));

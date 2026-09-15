@@ -33,25 +33,32 @@ public abstract class TaskBase
 
     public required TimeSpan TriggerEvery { get; set; }
 
-    public required DateTime? ToStartAtUtc { get; set; }
+    public required DateTime? StartAtUtc { get; set; }
 
-    public required DateTime? ToEndAtUtc { get; set; }
+    public required DateTime? EndAtUtc { get; set; }
 
     public required DateTime CreatedUtc { get; set; }
 
     public required DateTime UpdatedUtc { get; set; }
 
-    public required DateTime? LastStart { get; set; }
+    public required DateTime? LastStartUtc { get; set; }
 
-    public required DateTime? LastEnd { get; set; }
+    public required DateTime? LastEndUtc { get; set; }
 
     // Counts consecutive failures since the last Completed run - reset to zero on success. Compared
     // against TaskSchedulerSettings.FailureAttemptCount to decide whether a Failed task
     // is still Due.
     public int FailureCount { get; set; }
 
-    // A version 7 GUID minted fresh by the runner at the start of each run - our own identifier for
-    // correlating that run's logs and its persisted SourceResource rows, independent of whatever job
-    // id the target system (e.g. the FHIR bulk export server) assigns.
+    // Total number of times this task has been run by a TaskRunner.
+    public int RunCount { get; set; }
+
+    // Maximum number of runs permitted before the task is considered finished (null = run indefinitely).
+    public int? MaxRunCount { get; set; }
+
+    // A version 7 GUID minted fresh by the TaskScheduler for each run and persisted here by
+    // TryClaimAsync as part of the claim itself - our own identifier for correlating that run's logs
+    // and its persisted SourceResource rows, independent of whatever job id the target system (e.g.
+    // the FHIR bulk export server) assigns.
     public Guid? LastCorrelationId { get; set; }
 }

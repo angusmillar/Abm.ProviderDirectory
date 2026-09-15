@@ -1,6 +1,8 @@
-﻿namespace Abm.PD.Core.Domain.Enums;
+namespace Abm.PD.Core.Domain.Enums;
 
 public enum TaskTypeId
 {
-    BulkImport = 1
+    ExportTask = 1,
+    MatchingTask = 2,
+    ImportTask = 3
 }

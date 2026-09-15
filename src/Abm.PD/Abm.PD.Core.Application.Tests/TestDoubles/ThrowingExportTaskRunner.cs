@@ -10,6 +10,7 @@ public sealed class ThrowingExportTaskRunner : IExportTaskRunner
 {
     public Task<SourceResourceLoadResult> Run(
         ExportTask exportTask,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         throw new InvalidOperationException("Simulated export failure");

@@ -37,7 +37,7 @@ public class CoreApiWebApplicationFactory(string connectionString) : WebApplicat
                 // would keep firing in the background across every other test in the suite.
                 ["TaskScheduler:PollInterval"] = "00:10:00",
                 // The minimum this repo's settings validation allows - short enough that a reaped-task
-                // test only needs a LastStart a few minutes in the past, not the 2-hour production default.
+                // test only needs a LastStartUtc a few minutes in the past, not the 2-hour production default.
                 ["TaskScheduler:StaleInProgressAfter"] = "00:05:00",
             });
         });

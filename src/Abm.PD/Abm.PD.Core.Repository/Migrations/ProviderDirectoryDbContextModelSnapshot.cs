@@ -165,6 +165,10 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("display_name");
 
+                    b.Property<DateTime?>("EndAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at_utc");
+
                     b.Property<int>("FailureCount")
                         .HasColumnType("integer")
                         .HasColumnName("failure_count");
@@ -173,13 +177,25 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("last_correlation_id");
 
-                    b.Property<DateTime?>("LastEnd")
+                    b.Property<DateTime?>("LastEndUtc")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_end");
+                        .HasColumnName("last_end_utc");
 
-                    b.Property<DateTime?>("LastStart")
+                    b.Property<DateTime?>("LastStartUtc")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_start");
+                        .HasColumnName("last_start_utc");
+
+                    b.Property<int?>("MaxRunCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_run_count");
+
+                    b.Property<int>("RunCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_count");
+
+                    b.Property<DateTime?>("StartAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at_utc");
 
                     b.Property<int>("State")
                         .HasColumnType("integer")
@@ -188,14 +204,6 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.Property<string>("StateReason")
                         .HasColumnType("text")
                         .HasColumnName("state_reason");
-
-                    b.Property<DateTime?>("ToEndAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("to_end_at_utc");
-
-                    b.Property<DateTime?>("ToStartAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("to_start_at_utc");
 
                     b.Property<TimeSpan>("TriggerEvery")
                         .HasColumnType("interval")
@@ -289,12 +297,17 @@ namespace Abm.PD.Core.Repository.Migrations
                         new
                         {
                             TaskTypeId = 1,
-                            Name = "BulkImport"
+                            Name = "ExportTask"
                         },
                         new
                         {
                             TaskTypeId = 2,
                             Name = "MatchingTask"
+                        },
+                        new
+                        {
+                            TaskTypeId = 3,
+                            Name = "ImportTask"
                         });
                 });
 

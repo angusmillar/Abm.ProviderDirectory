@@ -53,12 +53,12 @@ public class TaskSchedulerTests
             State = state,
             StateReason = null,
             TriggerEvery = TimeSpan.FromHours(24),
-            ToStartAtUtc = null,
-            ToEndAtUtc = null,
+            StartAtUtc = null,
+            EndAtUtc = null,
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow,
-            LastStart = null,
-            LastEnd = null,
+            LastStartUtc = null,
+            LastEndUtc = null,
             FailureCount = failureCount,
             DataSourceId = 1,
             DataSource = new DataSource { Id = 1, Code = "test-data-source", DisplayName = "Test Data Source" },
@@ -144,6 +144,32 @@ public class TaskSchedulerTests
 
         Assert.Equal(TaskStateId.Completed, seededTasks[0].State);
         Assert.Equal(0, seededTasks[0].FailureCount);
+    }
+
+    [Fact]
+    public async Task DoWork_RunnerSucceeds_IncrementsRunCount()
+    {
+        List<ExportTask> seededTasks = [NewTask(1, "task-one")];
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ScopeTrackingExportTaskRunner([]));
+        using IServiceScope tickScope = provider.CreateScope();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal(1, seededTasks[0].RunCount);
+    }
+
+    [Fact]
+    public async Task DoWork_RunnerThrows_LeavesRunCountUnchanged()
+    {
+        List<ExportTask> seededTasks = [NewTask(1, "task-one")];
+        await using ServiceProvider provider = BuildProvider(seededTasks, new ThrowingExportTaskRunner());
+        using IServiceScope tickScope = provider.CreateScope();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal(0, seededTasks[0].RunCount);
     }
 
     [Fact]

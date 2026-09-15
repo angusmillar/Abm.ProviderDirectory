@@ -13,10 +13,11 @@ namespace Abm.PD.Core.Api.Tests.TestDoubles;
 /// </summary>
 public sealed class ConfigurableExportTaskRunner : IExportTaskRunner
 {
-    public Func<ExportTask, CancellationToken, Task<SourceResourceLoadResult>>? Behaviour { get; set; }
+    public Func<ExportTask, Guid, CancellationToken, Task<SourceResourceLoadResult>>? Behaviour { get; set; }
 
     public Task<SourceResourceLoadResult> Run(
         ExportTask exportTask,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (Behaviour is null)
@@ -25,6 +26,6 @@ public sealed class ConfigurableExportTaskRunner : IExportTaskRunner
                 $"{nameof(ConfigurableExportTaskRunner)}.{nameof(Behaviour)} was not set before the scheduler ran.");
         }
 
-        return Behaviour(exportTask, cancellationToken);
+        return Behaviour(exportTask, correlationId, cancellationToken);
     }
 }

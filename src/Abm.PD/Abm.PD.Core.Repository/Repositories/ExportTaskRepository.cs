@@ -59,10 +59,11 @@ public class ExportTaskRepository(ProviderDirectoryDbContext dbContext) : IExpor
         existing.State = exportTask.State;
         existing.StateReason = exportTask.StateReason;
         existing.TriggerEvery = exportTask.TriggerEvery;
-        existing.ToStartAtUtc = exportTask.ToStartAtUtc;
-        existing.ToEndAtUtc = exportTask.ToEndAtUtc;
-        existing.LastStart = exportTask.LastStart;
-        existing.LastEnd = exportTask.LastEnd;
+        existing.StartAtUtc = exportTask.StartAtUtc;
+        existing.EndAtUtc = exportTask.EndAtUtc;
+        existing.MaxRunCount = exportTask.MaxRunCount;
+        existing.LastStartUtc = exportTask.LastStartUtc;
+        existing.LastEndUtc = exportTask.LastEndUtc;
         existing.DataSourceId = exportTask.DataSourceId;
         // CreatedUtc is deliberately never copied here - immutable after insert. UpdatedUtc always
         // is, caller-owned like every other field above.
@@ -116,12 +117,12 @@ public class ExportTaskRepository(ProviderDirectoryDbContext dbContext) : IExpor
 
         if (lastStartFrom is not null)
         {
-            query = query.Where(x => x.LastStart != null && x.LastStart >= lastStartFrom);
+            query = query.Where(x => x.LastStartUtc != null && x.LastStartUtc >= lastStartFrom);
         }
 
         if (lastStartTo is not null)
         {
-            query = query.Where(x => x.LastStart != null && x.LastStart <= lastStartTo);
+            query = query.Where(x => x.LastStartUtc != null && x.LastStartUtc <= lastStartTo);
         }
 
         return await query.ToListAsync(cancellationToken);

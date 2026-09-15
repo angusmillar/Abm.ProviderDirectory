@@ -43,8 +43,9 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
             State: state,
             StateReason: null,
             TriggerEvery: TimeSpan.FromHours(24),
-            ToStartAtUtc: toStartAtUtc,
-            ToEndAtUtc: null,
+            StartAtUtc: toStartAtUtc,
+            EndAtUtc: null,
+            MaxRunCount: null,
             DataSourceCode: dataSourceCode,
             Parameter: new ExportTaskParameterRequest(
                 Type: "Patient",
@@ -59,8 +60,9 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
         StateReason: response.StateReason,
         DataSourceCode: response.DataSourceCode,
         TriggerEvery: response.TriggerEvery,
-        ToStartAtUtc: response.ToStartAtUtc,
-        ToEndAtUtc: response.ToEndAtUtc,
+        StartAtUtc: response.StartAtUtc,
+        EndAtUtc: response.EndAtUtc,
+        MaxRunCount: response.MaxRunCount,
         Parameter: response.Parameter);
 
     [Fact]
@@ -76,13 +78,17 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
         Assert.NotNull(created);
         Assert.Equal(request.Code, created!.Code);
         Assert.Equal(request.DisplayName, created.DisplayName);
-        Assert.Equal(TaskTypeId.BulkImport, created.TypeId);
+        Assert.Equal(TaskTypeId.ExportTask, created.TypeId);
         Assert.Equal(new[] { "Patient" }, created.Parameter.TypeFilterList);
         Assert.Equal(dataSourceCode, created.DataSourceCode);
         Assert.Null(created.LastStartUtc);
         Assert.Null(created.LastEndUtc);
         Assert.NotEqual(default, created.CreatedUtc);
         Assert.NotEqual(default, created.UpdatedUtc);
+        Assert.Equal(0, created.FailureCount);
+        Assert.Equal(0, created.RunCount);
+        Assert.Null(created.MaxRunCount);
+        Assert.Null(created.LastCorrelationId);
     }
 
     [Fact]
@@ -93,7 +99,7 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
         HttpResponseMessage response = await HttpClient.PostAsJsonAsync("/ExportTask", request);
 
         string body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("\"typeId\":\"BulkImport\"", body);
+        Assert.Contains("\"typeId\":\"ExportTask\"", body);
         Assert.Contains("\"state\":\"Ready\"", body);
         Assert.DoesNotContain("\"typeId\":1", body);
         Assert.DoesNotContain("\"state\":1", body);
@@ -102,7 +108,7 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
     [Fact]
     public async Task Create_WithNonUtcOffsetToStartAtUtc_Succeeds()
     {
-        // ExportTaskRequest.ToStartAtUtc is a DateTimeOffset so it carries its offset
+        // ExportTaskRequest.StartAtUtc is a DateTimeOffset so it carries its offset
         // explicitly - a plain DateTime? here could otherwise deserialise with Kind=Local for a
         // non-zero offset, which Npgsql rejects for a "timestamp with time zone" column.
         string dataSourceCode = await CreateDataSourceCodeAsync();
@@ -114,7 +120,7 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         ExportTaskResponse? created = await response.Content.ReadFromJsonAsync<ExportTaskResponse>(JsonOptions);
         Assert.NotNull(created);
-        Assert.Equal(toStartAtUtc, created!.ToStartAtUtc);
+        Assert.Equal(toStartAtUtc, created!.StartAtUtc);
     }
 
     [Fact]
@@ -259,8 +265,8 @@ public class ExportTaskCrudTests(IntegrationTestFixture fixture) : IntegrationTe
     public async Task GetById_ResponseBody_CanBePutStraightBackWithoutModification()
     {
         // The whole point of ExportTaskUpdateRequest excluding the server-controlled fields
-        // (Id, TypeId, Code, CreatedUtc, UpdatedUtc, LastStartUtc,
-        // LastEndUtc) is that a client can round-trip a GET response straight back through PUT
+        // (Id, TypeId, Code, CreatedUtc, UpdatedUtc, LastStartUtc, LastEndUtc, FailureCount, RunCount,
+        // LastCorrelationId) is that a client can round-trip a GET response straight back through PUT
         // without stripping anything out first - the extra JSON properties are just ignored. A
         // non-null Since is set here because the GET response converts it (and every other time
         // value) to ServiceDefaultTimeZone's offset (e.g. +10:00) - Npgsql rejects a non-UTC

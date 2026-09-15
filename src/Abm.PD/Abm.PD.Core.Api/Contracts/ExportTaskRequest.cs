@@ -9,7 +9,8 @@ public record ExportTaskRequest(
     TaskStateId State,
     string? StateReason,
     TimeSpan TriggerEvery,
-    DateTimeOffset? ToStartAtUtc,
-    DateTimeOffset? ToEndAtUtc,
+    DateTimeOffset? StartAtUtc,
+    DateTimeOffset? EndAtUtc,
+    int? MaxRunCount,
     string DataSourceCode,
     ExportTaskParameterRequest Parameter);

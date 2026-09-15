@@ -23,12 +23,12 @@ public class ExportTaskTaskRunnerTests
             State = TaskStateId.InProgress,
             StateReason = null,
             TriggerEvery = TimeSpan.FromHours(24),
-            ToStartAtUtc = null,
-            ToEndAtUtc = null,
+            StartAtUtc = null,
+            EndAtUtc = null,
             CreatedUtc = nowUtc,
             UpdatedUtc = nowUtc,
-            LastStart = nowUtc,
-            LastEnd = null,
+            LastStartUtc = nowUtc,
+            LastEndUtc = null,
             DataSourceId = 1,
             DataSource = new DataSource { Id = 1, Code = "test-data-source", DisplayName = "Test Data Source" },
             Parameter = new ExportParameter { Type = "Patient", Since = null, TypeFilterList = ["Patient"] },
@@ -51,13 +51,13 @@ public class ExportTaskTaskRunnerTests
         };
         ExportTaskRunner.ExportTaskTaskRunner taskTaskRunner = new(NullLogger<ExportTaskRunner.ExportTaskTaskRunner>.Instance, fakeExporter, fakeLoader);
         ExportTask task = NewTask();
+        Guid correlationId = Guid.CreateVersion7();
 
-        SourceResourceLoadResult result = await taskTaskRunner.Run(task, CancellationToken.None);
+        SourceResourceLoadResult result = await taskTaskRunner.Run(task, correlationId, CancellationToken.None);
 
         Assert.Equal(1, result.CommittedCount);
         Assert.Single(fakeLoader.ReceivedResources);
-        Assert.NotEqual(Guid.Empty, fakeLoader.ReceivedCorrelationId);
-        Assert.Equal(task.LastCorrelationId, fakeLoader.ReceivedCorrelationId);
+        Assert.Equal(correlationId, fakeLoader.ReceivedCorrelationId);
         Assert.Same(task.DataSource, fakeLoader.ReceivedDataSource);
         Assert.NotNull(fakeExporter.ReceivedParameters);
     }
@@ -69,6 +69,7 @@ public class ExportTaskTaskRunnerTests
         FakeSourceResourceLoader fakeLoader = new();
         ExportTaskRunner.ExportTaskTaskRunner taskTaskRunner = new(NullLogger<ExportTaskRunner.ExportTaskTaskRunner>.Instance, fakeExporter, fakeLoader);
 
-        await Assert.ThrowsAsync<ArgumentNullException>(() => taskTaskRunner.Run(NewTask(), CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => taskTaskRunner.Run(NewTask(), Guid.CreateVersion7(), CancellationToken.None));
     }
 }
