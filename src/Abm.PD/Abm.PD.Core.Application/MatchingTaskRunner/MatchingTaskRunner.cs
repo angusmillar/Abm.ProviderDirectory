@@ -59,7 +59,7 @@ public class MatchingTaskRunner(
                         exception,
                         "{ResourceType}/{ResourceId} for CorrelationId {CorrelationId} could not be deserialised",
                         sourceResource.ResourceType,
-                        sourceResource.ResourceId,
+                        sourceResource.SourceResourceId,
                         targetCorrelationId);
                 }
             }

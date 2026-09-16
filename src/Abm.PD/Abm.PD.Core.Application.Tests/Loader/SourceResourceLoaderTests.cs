@@ -113,13 +113,27 @@ public class SourceResourceLoaderTests
         SourceResource persisted = Assert.Single(repository.ReceivedBatches.SelectMany(batch => batch));
         Assert.Equal(TestCorrelationId, persisted.CorrelationId);
         Assert.Equal("Practitioner", persisted.ResourceType);
-        Assert.Equal("1", persisted.ResourceId);
+        Assert.Equal("1", persisted.SourceResourceId);
         Assert.Equal(lastUpdated, persisted.ResourceLastUpdated);
         Assert.Equal(TestDataSource.Id, persisted.DataSourceId);
         Assert.Same(TestDataSource, persisted.DataSource);
         Assert.Contains("\"resourceType\":\"Practitioner\"", persisted.Resource);
         Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), persisted.CreatedUtc);
         Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), persisted.UpdatedUtc);
+    }
+
+    [Fact]
+    public async Task Load_AssignsEachResourceADistinctVersion7GuidAsTargetResourceId()
+    {
+        FakeSourceResourceRepository repository = new();
+        SourceResourceLoader loader = NewLoader(repository, batchSize: 2);
+        RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
+
+        await loader.Load(source.ReadAsync(), TestCorrelationId, TestDataSource, CancellationToken.None);
+
+        List<SourceResource> persisted = repository.ReceivedBatches.SelectMany(batch => batch).ToList();
+        Assert.All(persisted, resource => Assert.Equal('7', resource.TargetResourceId.ToString()[14]));
+        Assert.Equal(2, persisted.Select(resource => resource.TargetResourceId).Distinct().Count());
     }
 
     [Fact]

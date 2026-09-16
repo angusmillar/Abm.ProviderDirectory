@@ -54,7 +54,8 @@ public class MatchingTaskRunnerTests
         {
             CorrelationId = correlationId,
             ResourceType = resourceType,
-            ResourceId = resourceId,
+            SourceResourceId = resourceId,
+            TargetResourceId = Guid.CreateVersion7(),
             ResourceLastUpdated = DateTimeOffset.UtcNow,
             DataSourceId = dataSource.Id,
             DataSource = dataSource,

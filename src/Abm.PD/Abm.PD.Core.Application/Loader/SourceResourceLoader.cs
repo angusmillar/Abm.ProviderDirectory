@@ -125,8 +125,8 @@ public class SourceResourceLoader(
         DataSource dataSource,
         LoadTally tally)
     {
-        //The natural key (CorrelationId, ResourceType, ResourceId) can not be formed without an id, so the resource is
-        //reported and skipped rather than thrown, so that the rest of the export still lands.
+        //The natural key (CorrelationId, ResourceType, SourceResourceId) can not be formed without an id, so the
+        //resource is reported and skipped rather than thrown, so that the rest of the export still lands.
         if (string.IsNullOrWhiteSpace(exportResource.Resource.Id))
         {
             RecordFailure(
@@ -153,7 +153,10 @@ public class SourceResourceLoader(
         {
             CorrelationId = correlationId,
             ResourceType = exportResource.Resource.TypeName,
-            ResourceId = exportResource.Resource.Id,
+            SourceResourceId = exportResource.Resource.Id,
+            //A fresh identity for the target directory. Retargeting the FHIR JSON's own resource.id, and any
+            //references to it, is out of scope for now - see the property's doc comment on SourceResource.
+            TargetResourceId = Guid.CreateVersion7(),
             ResourceLastUpdated = resourceLastUpdated,
             DataSourceId = dataSource.Id,
             DataSource = dataSource,

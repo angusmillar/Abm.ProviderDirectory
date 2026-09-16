@@ -39,7 +39,8 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         {
             CorrelationId = correlationId ?? DefaultCorrelationId,
             ResourceType = resourceType,
-            ResourceId = resourceId,
+            SourceResourceId = resourceId,
+            TargetResourceId = Guid.CreateVersion7(),
             ResourceLastUpdated = DateTimeOffset.UtcNow,
             DataSourceId = dataSource.Id,
             DataSource = dataSource,
@@ -73,7 +74,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         Assert.True(persistedJson.RootElement.GetProperty("active").GetBoolean());
         Assert.Equal(DefaultCorrelationId, persisted.CorrelationId);
         Assert.Equal("Practitioner", persisted.ResourceType);
-        Assert.Equal("1", persisted.ResourceId);
+        Assert.Equal("1", persisted.SourceResourceId);
         Assert.Equal(dataSource.Id, persisted.DataSourceId);
     }
 
@@ -126,7 +127,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         List<string> visitedResourceIds = [];
         await foreach (SourceResource resource in repository.GetByCorrelationIdAsync(correlationId, "Practitioner", CancellationToken.None))
         {
-            visitedResourceIds.Add(resource.ResourceId);
+            visitedResourceIds.Add(resource.SourceResourceId);
             resource.UpdatedUtc = resource.UpdatedUtc.AddDays(1);
 
             // Proves the caller can interleave a write with the still-open enumeration on the same
