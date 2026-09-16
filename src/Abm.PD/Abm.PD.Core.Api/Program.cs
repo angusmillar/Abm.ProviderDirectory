@@ -72,6 +72,7 @@ app.MapScalarApiReference();
 app.MapResourceEndpoints();
 app.MapDataSourceEndpoints();
 app.MapExportTaskEndpoints();
+app.MapMatchingTaskEndpoints();
 app.MapHealthCheckEndpoints();
 
 app.Run();

@@ -325,6 +325,18 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.HasDiscriminator().HasValue(1);
                 });
 
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.MatchingTask", b =>
+                {
+                    b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
+
+                    b.Property<string>("MetaData")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("meta_data");
+
+                    b.HasDiscriminator().HasValue(2);
+                });
+
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.SourceResource", b =>
                 {
                     b.HasOne("Abm.PD.Core.Domain.Entities.DataSource", "DataSource")

@@ -50,11 +50,11 @@ public class TaskScheduler(
                 continue;
             }
 
-            // Future-proofing for a second TaskTypeId/discriminator - not reachable today. TPH maps
-            // only TaskTypeId.ExportTask -> ExportTask; MatchingTask and ImportTask exist on the enum
-            // but have no mapped CLR subtype yet, so a row carrying either TypeId would throw during EF
-            // materialisation inside FindDueAsync, aborting the whole tick, rather than degrading to a
-            // bare TaskBase that would fall through to this check.
+            // MatchingTask is now TPH-mapped but has no runner wired up yet (MatchingTaskRunner.Run
+            // throws NotImplementedException) - a claimed MatchingTask row falls through to here and
+            // is marked Failed rather than being handed to a runner. ImportTask still has no mapped
+            // CLR subtype at all, so a row carrying that TypeId would throw during EF materialisation
+            // inside FindDueAsync instead, aborting the whole tick.
             if (task is not ExportTask)
             {
                 logger.LogWarning(

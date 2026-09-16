@@ -11,9 +11,9 @@ internal sealed class TaskBaseConfiguration : IEntityTypeConfiguration<TaskBase>
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // Table-Per-Hierarchy: every TaskBase subtype (ExportTask today) shares this one
-        // table, discriminated by the stored TypeId column - see the design spec's TPH section for
-        // why this replaced the earlier TPC decision.
+        // Table-Per-Hierarchy: every TaskBase subtype (ExportTask, MatchingTask today) shares this
+        // one table, discriminated by the stored TypeId column - see the design spec's TPH section
+        // for why this replaced the earlier TPC decision.
         builder.ToTable("task");
         builder.HasKey(x => x.Id);
 
@@ -24,6 +24,7 @@ internal sealed class TaskBaseConfiguration : IEntityTypeConfiguration<TaskBase>
             .IsUnique();
 
         builder.HasDiscriminator(x => x.TypeId)
-            .HasValue<ExportTask>(TaskTypeId.ExportTask);
+            .HasValue<ExportTask>(TaskTypeId.ExportTask)
+            .HasValue<MatchingTask>(TaskTypeId.MatchingTask);
     }
 }

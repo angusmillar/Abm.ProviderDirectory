@@ -116,7 +116,8 @@ namespace Abm.PD.Core.Repository.Migrations
                     run_count = table.Column<int>(type: "integer", nullable: false),
                     max_run_count = table.Column<int>(type: "integer", nullable: true),
                     last_correlation_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    data_source_id = table.Column<int>(type: "integer", nullable: true)
+                    data_source_id = table.Column<int>(type: "integer", nullable: true),
+                    meta_data = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {

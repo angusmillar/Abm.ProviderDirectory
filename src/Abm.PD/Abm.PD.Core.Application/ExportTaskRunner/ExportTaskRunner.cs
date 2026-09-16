@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Abm.PD.Core.Application.ExportTaskRunner;
 
-public class ExportTaskTaskRunner(
-    ILogger<ExportTaskTaskRunner> logger,
+public class ExportTaskRunner(
+    ILogger<ExportTaskRunner> logger,
     IFhirExporter fhirExporter,
     ISourceResourceLoader sourceResourceLoader) : IExportTaskRunner
 {

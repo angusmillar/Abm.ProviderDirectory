@@ -31,7 +31,7 @@ public static class ServiceCollectionExtension
             .GetSection(TaskSchedulerSettings.SectionName)
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
 
-        services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskTaskRunner>();
+        services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
         // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds

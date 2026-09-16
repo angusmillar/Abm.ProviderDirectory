@@ -11,6 +11,7 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
     public DbSet<TaskState> TaskStates => Set<TaskState>();
     public DbSet<TaskType> TaskTypes => Set<TaskType>();
     public DbSet<ExportTask> ExportTasks => Set<ExportTask>();
+    public DbSet<MatchingTask> MatchingTasks => Set<MatchingTask>();
     public DbSet<TaskBase> Tasks => Set<TaskBase>();
     public DbSet<SourceResource> SourceResources => Set<SourceResource>();
 

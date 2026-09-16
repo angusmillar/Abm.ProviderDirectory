@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260915052118_InitialCreate")]
+    [Migration("20260916083500_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -326,6 +326,18 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasDatabaseName("ix_task_data_source_id");
 
                     b.HasDiscriminator().HasValue(1);
+                });
+
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.MatchingTask", b =>
+                {
+                    b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
+
+                    b.Property<string>("MetaData")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("meta_data");
+
+                    b.HasDiscriminator().HasValue(2);
                 });
 
             modelBuilder.Entity("Abm.PD.Core.Domain.Entities.SourceResource", b =>

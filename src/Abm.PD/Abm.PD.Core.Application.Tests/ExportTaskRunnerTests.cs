@@ -10,7 +10,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace Abm.PD.Core.Application.Tests;
 
-public class ExportTaskTaskRunnerTests
+public class ExportTaskRunnerTests
 {
     private static ExportTask NewTask()
     {
@@ -49,11 +49,11 @@ public class ExportTaskTaskRunnerTests
             ResultToReturn = new SourceResourceLoadResult(
                 SubmittedCount: 1, CommittedCount: 1, FailedCount: 0, BatchCount: 1, RetainedFailures: []),
         };
-        ExportTaskRunner.ExportTaskTaskRunner taskTaskRunner = new(NullLogger<ExportTaskRunner.ExportTaskTaskRunner>.Instance, fakeExporter, fakeLoader);
+        ExportTaskRunner.ExportTaskRunner taskRunner = new(NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, fakeExporter, fakeLoader);
         ExportTask task = NewTask();
         Guid correlationId = Guid.CreateVersion7();
 
-        SourceResourceLoadResult result = await taskTaskRunner.Run(task, correlationId, CancellationToken.None);
+        SourceResourceLoadResult result = await taskRunner.Run(task, correlationId, CancellationToken.None);
 
         Assert.Equal(1, result.CommittedCount);
         Assert.Single(fakeLoader.ReceivedResources);
@@ -67,9 +67,9 @@ public class ExportTaskTaskRunnerTests
     {
         FakeFhirExporter fakeExporter = new() { ManifestToReturn = null };
         FakeSourceResourceLoader fakeLoader = new();
-        ExportTaskRunner.ExportTaskTaskRunner taskTaskRunner = new(NullLogger<ExportTaskRunner.ExportTaskTaskRunner>.Instance, fakeExporter, fakeLoader);
+        ExportTaskRunner.ExportTaskRunner taskRunner = new(NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, fakeExporter, fakeLoader);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => taskTaskRunner.Run(NewTask(), Guid.CreateVersion7(), CancellationToken.None));
+            () => taskRunner.Run(NewTask(), Guid.CreateVersion7(), CancellationToken.None));
     }
 }
