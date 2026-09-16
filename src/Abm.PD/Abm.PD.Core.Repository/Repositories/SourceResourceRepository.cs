@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -27,5 +28,26 @@ public class SourceResourceRepository(ProviderDirectoryDbContext dbContext) : IS
 
         dbContext.SourceResources.AddRange(sourceResources);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async IAsyncEnumerable<SourceResource> GetByCorrelationIdAsync(
+        Guid correlationId,
+        string resourceType,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        // Ids only, materialised up front: cheap even for a large correlation, and it leaves the
+        // dbContext free of an open reader so the caller can mutate and SaveChangesAsync on it
+        // between yields - a query held open across the whole enumeration would collide with that
+        // per-item write ("a second operation was started on this context before the previous one
+        // completed").
+        List<int> ids = await dbContext.SourceResources
+            .Where(x => x.CorrelationId == correlationId && x.ResourceType == resourceType)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (int id in ids)
+        {
+            yield return await dbContext.SourceResources.SingleAsync(x => x.Id == id, cancellationToken);
+        }
     }
 }

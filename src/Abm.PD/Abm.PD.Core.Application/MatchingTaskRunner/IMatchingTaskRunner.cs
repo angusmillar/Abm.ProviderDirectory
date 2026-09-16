@@ -4,7 +4,7 @@ namespace Abm.PD.Core.Application.MatchingTaskRunner;
 
 public interface IMatchingTaskRunner
 {
-    Task Run(
+    Task<MatchingTaskResult> Run(
         MatchingTask matchingTask,
         Guid correlationId,
         CancellationToken cancellationToken);

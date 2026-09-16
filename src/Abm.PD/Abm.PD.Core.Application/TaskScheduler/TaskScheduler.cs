@@ -136,7 +136,7 @@ public class TaskScheduler(
             ?? throw new InvalidOperationException($"MatchingTask {taskId} was claimed but no longer exists");
 
         IMatchingTaskRunner matchingTaskRunner = taskScope.ServiceProvider.GetRequiredService<IMatchingTaskRunner>();
-        await matchingTaskRunner.Run(matchingTask, correlationId, cancellationToken);
-        return "Matching task completed";
+        MatchingTaskResult result = await matchingTaskRunner.Run(matchingTask, correlationId, cancellationToken);
+        return $"Processed {result.ProcessedCount}, {result.FailedCount} failed";
     }
 }

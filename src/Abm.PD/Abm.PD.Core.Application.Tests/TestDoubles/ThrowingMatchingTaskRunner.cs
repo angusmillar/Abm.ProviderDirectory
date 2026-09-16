@@ -7,7 +7,7 @@ namespace Abm.PD.Core.Application.Tests.TestDoubles;
 // behaviour without a real matching implementation, mirroring ThrowingExportTaskRunner.
 public sealed class ThrowingMatchingTaskRunner : IMatchingTaskRunner
 {
-    public Task Run(
+    public Task<MatchingTaskResult> Run(
         MatchingTask matchingTask,
         Guid correlationId,
         CancellationToken cancellationToken)

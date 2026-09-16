@@ -98,4 +98,56 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         PostgresException postgresException = Assert.IsType<PostgresException>(exception.InnerException);
         Assert.Equal("23505", postgresException.SqlState);
     }
+
+    [Fact]
+    public async Task GetByCorrelationIdAsync_YieldsOnlyMatchingCorrelationIdAndResourceType_AndAllowsSaveAsIterated()
+    {
+        using IServiceScope setupScope = Fixture.Services.CreateScope();
+        DataSource dataSource = await NewPersistedDataSourceAsync(setupScope.ServiceProvider);
+        ISourceResourceRepository setupRepository = setupScope.ServiceProvider.GetRequiredService<ISourceResourceRepository>();
+
+        Guid correlationId = Guid.NewGuid();
+        await setupRepository.AddRangeAsync(
+            [
+                NewSourceResource(dataSource, correlationId: correlationId, resourceType: "Practitioner", resourceId: "1"),
+                NewSourceResource(dataSource, correlationId: correlationId, resourceType: "Practitioner", resourceId: "2"),
+                NewSourceResource(dataSource, correlationId: correlationId, resourceType: "Endpoint", resourceId: "1"),
+                NewSourceResource(dataSource, correlationId: Guid.NewGuid(), resourceType: "Practitioner", resourceId: "1"),
+            ],
+            CancellationToken.None);
+
+        // Repository and dbContext resolved from the same scope, matching how a real consumer would call
+        // SaveChangesAsync per item - AddDbContext is scoped, so this is the one instance the repository
+        // itself is using internally.
+        using IServiceScope iterateScope = Fixture.Services.CreateScope();
+        ISourceResourceRepository repository = iterateScope.ServiceProvider.GetRequiredService<ISourceResourceRepository>();
+        ProviderDirectoryDbContext dbContext = iterateScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
+
+        List<string> visitedResourceIds = [];
+        await foreach (SourceResource resource in repository.GetByCorrelationIdAsync(correlationId, "Practitioner", CancellationToken.None))
+        {
+            visitedResourceIds.Add(resource.ResourceId);
+            resource.UpdatedUtc = resource.UpdatedUtc.AddDays(1);
+
+            // Proves the caller can interleave a write with the still-open enumeration on the same
+            // dbContext - the method must not hold a live reader across yields.
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        Assert.Equal(["1", "2"], visitedResourceIds.OrderBy(x => x));
+
+        using IServiceScope verifyScope = Fixture.Services.CreateScope();
+        ProviderDirectoryDbContext verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<ProviderDirectoryDbContext>();
+        List<SourceResource> persisted = await verifyDbContext.SourceResources
+            .AsNoTracking()
+            .Where(x => x.CorrelationId == correlationId)
+            .ToListAsync(CancellationToken.None);
+
+        Assert.All(
+            persisted.Where(x => x.ResourceType == "Practitioner"),
+            x => Assert.True(x.UpdatedUtc > x.CreatedUtc));
+        Assert.All(
+            persisted.Where(x => x.ResourceType == "Endpoint"),
+            x => Assert.Equal(x.CreatedUtc, x.UpdatedUtc));
+    }
 }
