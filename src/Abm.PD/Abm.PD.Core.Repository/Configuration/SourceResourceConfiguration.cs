@@ -24,7 +24,7 @@ internal sealed class SourceResourceConfiguration : IEntityTypeConfiguration<Sou
             .HasMaxLength(ResourceIdMaxLength);
 
         // jsonb rather than text: Npgsql maps it straight onto this string property, it validates the
-        // payload is well formed JSON on write, and it leaves a GIN index reachable later without a
+        // payload is well-formed JSON on write, and it leaves a GIN index reachable later without a
         // migration if a query need ever shows up - none of which requires the entity to know about it.
         builder.Property(x => x.Resource)
             .HasColumnType("jsonb");
