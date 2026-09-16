@@ -1,6 +1,7 @@
 using Abm.Core.HostedService;
 using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
+using Abm.PD.Core.Application.MatchingTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,7 @@ public static class ServiceCollectionExtension
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
 
         services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskRunner>();
+        services.AddScoped<IMatchingTaskRunner, MatchingTaskRunner.MatchingTaskRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
         // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds

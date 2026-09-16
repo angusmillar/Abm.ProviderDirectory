@@ -1,5 +1,6 @@
 using Abm.Core.Time;
 using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.MatchingTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Application.Tests.TestDoubles;
 using Abm.PD.Core.Domain.Entities;
@@ -66,6 +67,32 @@ public class TaskSchedulerTests
         };
     }
 
+    private static MatchingTask NewMatchingTask(
+        int id,
+        string code,
+        TaskStateId state = TaskStateId.Ready,
+        int failureCount = 0)
+    {
+        return new MatchingTask
+        {
+            Id = id,
+            Code = code,
+            DisplayName = $"Task {code}",
+            Description = null,
+            State = state,
+            StateReason = null,
+            TriggerEvery = TimeSpan.FromHours(24),
+            StartAtUtc = null,
+            EndAtUtc = null,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow,
+            LastStartUtc = null,
+            LastEndUtc = null,
+            FailureCount = failureCount,
+            MetaData = "{}",
+        };
+    }
+
     private static ServiceProvider BuildProvider(
         List<ExportTask> seededTasks,
         IExportTaskRunner exportTaskRunner,
@@ -75,6 +102,7 @@ public class TaskSchedulerTests
         services.AddSingleton<IExportTaskRunner>(exportTaskRunner);
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
+        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository([]));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
@@ -100,6 +128,7 @@ public class TaskSchedulerTests
         services.AddScoped<IExportTaskRunner, ScopeTrackingExportTaskRunner>();
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
+        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository([]));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));
@@ -202,5 +231,61 @@ public class TaskSchedulerTests
         await scheduler.DoWork(CancellationToken.None);
 
         Assert.Empty(calls);
+    }
+
+    [Fact]
+    public async Task DoWork_MatchingTaskDue_RunsMatchingTaskRunnerAndMarksCompleted()
+    {
+        List<int> calls = [];
+        List<MatchingTask> seededTasks = [NewMatchingTask(1, "matching-one")];
+
+        ServiceCollection services = new();
+        services.AddSingleton<IExportTaskRunner>(new ThrowingExportTaskRunner());
+        services.AddSingleton<IMatchingTaskRunner>(new StubMatchingTaskRunner(calls));
+        services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
+        services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository([]));
+        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository(seededTasks));
+        services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
+        services.AddSingleton<IOptions<TaskSchedulerSettings>>(
+            Options.Create(new TaskSchedulerSettings()));
+        services.AddSingleton<ILogger<TaskScheduler.TaskScheduler>>(NullLogger<TaskScheduler.TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler.TaskScheduler>();
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using IServiceScope tickScope = provider.CreateScope();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal([1], calls);
+        Assert.Equal(TaskStateId.Completed, seededTasks[0].State);
+        Assert.Equal(1, seededTasks[0].RunCount);
+    }
+
+    [Fact]
+    public async Task DoWork_MatchingTaskRunnerThrows_IncrementsFailureCountAndSetsFailed()
+    {
+        List<MatchingTask> seededTasks = [NewMatchingTask(1, "matching-one")];
+
+        ServiceCollection services = new();
+        services.AddSingleton<IExportTaskRunner>(new ThrowingExportTaskRunner());
+        services.AddSingleton<IMatchingTaskRunner>(new ThrowingMatchingTaskRunner());
+        services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
+        services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository([]));
+        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository(seededTasks));
+        services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
+        services.AddSingleton<IOptions<TaskSchedulerSettings>>(
+            Options.Create(new TaskSchedulerSettings()));
+        services.AddSingleton<ILogger<TaskScheduler.TaskScheduler>>(NullLogger<TaskScheduler.TaskScheduler>.Instance);
+        services.AddScoped<TaskScheduler.TaskScheduler>();
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using IServiceScope tickScope = provider.CreateScope();
+        TaskScheduler.TaskScheduler scheduler = tickScope.ServiceProvider.GetRequiredService<TaskScheduler.TaskScheduler>();
+
+        await scheduler.DoWork(CancellationToken.None);
+
+        Assert.Equal(TaskStateId.Failed, seededTasks[0].State);
+        Assert.Equal(1, seededTasks[0].FailureCount);
     }
 }

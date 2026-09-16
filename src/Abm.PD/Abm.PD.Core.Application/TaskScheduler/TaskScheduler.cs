@@ -2,6 +2,7 @@ using Abm.Core.HostedService;
 using Abm.Core.Time;
 using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
+using Abm.PD.Core.Application.MatchingTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
@@ -15,6 +16,7 @@ namespace Abm.PD.Core.Application.TaskScheduler;
 public class TaskScheduler(
     ITaskRepository taskRepository,
     IExportTaskRepository exportTaskRepository,
+    IMatchingTaskRepository matchingTaskRepository,
     IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
     IOptions<TaskSchedulerSettings> settings,
@@ -50,12 +52,9 @@ public class TaskScheduler(
                 continue;
             }
 
-            // MatchingTask is now TPH-mapped but has no runner wired up yet (MatchingTaskRunner.Run
-            // throws NotImplementedException) - a claimed MatchingTask row falls through to here and
-            // is marked Failed rather than being handed to a runner. ImportTask still has no mapped
-            // CLR subtype at all, so a row carrying that TypeId would throw during EF materialisation
-            // inside FindDueAsync instead, aborting the whole tick.
-            if (task is not ExportTask)
+            // ImportTask still has no mapped CLR subtype at all, so a row carrying that TypeId would
+            // throw during EF materialisation inside FindDueAsync instead, aborting the whole tick.
+            if (task is not ExportTask and not MatchingTask)
             {
                 logger.LogWarning(
                     "Task {TaskCode} has unsupported {TypeId}, marking Failed", task.Code, task.TypeId);
@@ -70,35 +69,34 @@ public class TaskScheduler(
                 continue;
             }
 
-            // Each task gets its own DI scope so its IExportRunner - and the scoped IFhirExporter/
-            // IFhirBulkExporter underneath it - is a fresh instance. FhirBulkExporter is a stateful,
-            // one-instance-one-export-session service; sharing one instance across every task in a tick
-            // (as constructor injection into this class would do) made every task after the first fail
-            // with "session already completed".
+            // Each task gets its own DI scope so its IExportTaskRunner/IMatchingTaskRunner - and the
+            // scoped IFhirExporter/IFhirBulkExporter underneath the export one - is a fresh instance.
+            // FhirBulkExporter is a stateful, one-instance-one-export-session service; sharing one
+            // instance across every task in a tick (as constructor injection into this class would do)
+            // made every task after the first fail with "session already completed".
             using IServiceScope taskScope = serviceScopeFactory.CreateScope();
-            IExportTaskRunner exportTaskRunner = taskScope.ServiceProvider.GetRequiredService<IExportTaskRunner>();
 
             try
             {
-                // task (from ITaskRepository) never has its DataSource navigation loaded - it's
-                // re-fetched here through IExportTaskRepository, which Includes it, rather than
-                // passed straight to IExportRunner.Run.
-                ExportTask exportTask = await exportTaskRepository.GetByIdAsync(task.Id, cancellationToken)
-                    ?? throw new InvalidOperationException($"ExportTask {task.Id} was claimed but no longer exists");
+                string outcomeReason = task switch
+                {
+                    ExportTask => await RunExportTask(taskScope, task.Id, correlationId, cancellationToken),
+                    MatchingTask => await RunMatchingTask(taskScope, task.Id, correlationId, cancellationToken),
+                    _ => throw new InvalidOperationException($"Task {task.Id} matched neither ExportTask nor MatchingTask despite the guard above"),
+                };
 
-                SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, correlationId, cancellationToken);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Completed,
                     dateTimeProvider.Now.UtcDateTime,
-                    $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed",
+                    outcomeReason,
                     FailureCountUpdate.Reset,
                     correlationId,
                     CancellationToken.None);
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "ExportTask {TaskCode} failed", task.Code);
+                logger.LogError(exception, "{TaskTypeId} {TaskCode} failed", task.TypeId, task.Code);
                 await taskRepository.RecordOutcomeAsync(
                     task.Id,
                     TaskStateId.Failed,
@@ -109,5 +107,36 @@ public class TaskScheduler(
                     CancellationToken.None);
             }
         }
+    }
+
+    private async Task<string> RunExportTask(
+        IServiceScope taskScope,
+        int taskId,
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        // task (from ITaskRepository) never has its DataSource navigation loaded - it's re-fetched
+        // here through IExportTaskRepository, which Includes it, rather than passed straight to
+        // IExportTaskRunner.Run.
+        ExportTask exportTask = await exportTaskRepository.GetByIdAsync(taskId, cancellationToken)
+            ?? throw new InvalidOperationException($"ExportTask {taskId} was claimed but no longer exists");
+
+        IExportTaskRunner exportTaskRunner = taskScope.ServiceProvider.GetRequiredService<IExportTaskRunner>();
+        SourceResourceLoadResult result = await exportTaskRunner.Run(exportTask, correlationId, cancellationToken);
+        return $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed";
+    }
+
+    private async Task<string> RunMatchingTask(
+        IServiceScope taskScope,
+        int taskId,
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        MatchingTask matchingTask = await matchingTaskRepository.GetByIdAsync(taskId, cancellationToken)
+            ?? throw new InvalidOperationException($"MatchingTask {taskId} was claimed but no longer exists");
+
+        IMatchingTaskRunner matchingTaskRunner = taskScope.ServiceProvider.GetRequiredService<IMatchingTaskRunner>();
+        await matchingTaskRunner.Run(matchingTask, correlationId, cancellationToken);
+        return "Matching task completed";
     }
 }
