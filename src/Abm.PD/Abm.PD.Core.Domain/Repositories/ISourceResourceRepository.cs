@@ -15,4 +15,19 @@ public interface ISourceResourceRepository
         Guid correlationId,
         string resourceType,
         CancellationToken cancellationToken);
+
+    // Builds the whole correlation's source-to-target reference map in memory: MatchingTaskRunner needs
+    // random access by "{ResourceType}/{SourceResourceId}" while it rewrites every reference on every
+    // resource, so unlike GetByCorrelationIdAsync this cannot be streamed one row at a time.
+    Task<Dictionary<string, SourceResourceIdLookup>> GetResourceIdDictionaryAsync(
+        Guid correlationId,
+        CancellationToken cancellationToken);
+
+    // UpdatedUtc is set to the moment of the call, not caller-supplied, so MatchingTaskRunner doesn't
+    // need a timestamp source of its own for what is otherwise a single-property write. Returns false
+    // rather than throwing when id doesn't match a row, mirroring TaskRepository.TryClaimAsync.
+    Task<bool> UpdateResourceAsync(
+        int id,
+        string resource,
+        CancellationToken cancellationToken);
 }

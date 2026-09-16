@@ -41,4 +41,33 @@ public sealed class FakeSourceResourceRepository : ISourceResourceRepository
             yield return resource;
         }
     }
+
+    public Task<Dictionary<string, SourceResourceIdLookup>> GetResourceIdDictionaryAsync(
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<string, SourceResourceIdLookup> lookup = SeededResources
+            .Where(x => x.CorrelationId == correlationId)
+            .ToDictionary(
+                x => $"{x.ResourceType}/{x.SourceResourceId}",
+                x => new SourceResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id));
+
+        return Task.FromResult(lookup);
+    }
+
+    public Task<bool> UpdateResourceAsync(
+        int id,
+        string resource,
+        CancellationToken cancellationToken)
+    {
+        SourceResource? existing = SeededResources.SingleOrDefault(x => x.Id == id);
+        if (existing is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        existing.Resource = resource;
+        existing.UpdatedUtc = DateTime.UtcNow;
+        return Task.FromResult(true);
+    }
 }

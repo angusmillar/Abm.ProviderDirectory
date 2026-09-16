@@ -50,4 +50,33 @@ public class SourceResourceRepository(ProviderDirectoryDbContext dbContext) : IS
             yield return await dbContext.SourceResources.SingleAsync(x => x.Id == id, cancellationToken);
         }
     }
+
+    public async Task<Dictionary<string, SourceResourceIdLookup>> GetResourceIdDictionaryAsync(
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        // Only the columns needed to build the map are projected - the source_resource row's jsonb payload is
+        // sizeable per resource and this map holds every row for the correlation at once, unlike
+        // GetByCorrelationIdAsync's per-resource streaming.
+        return await dbContext.SourceResources
+            .Where(x => x.CorrelationId == correlationId)
+            .Select(x => new { x.Id, x.ResourceType, x.SourceResourceId, x.TargetResourceId })
+            .ToDictionaryAsync(
+                x => $"{x.ResourceType}/{x.SourceResourceId}",
+                x => new SourceResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id),
+                cancellationToken);
+    }
+
+    public async Task<bool> UpdateResourceAsync(
+        int id,
+        string resource,
+        CancellationToken cancellationToken)
+    {
+        int rows = await dbContext.SourceResources
+            .Where(x => x.Id == id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Resource, resource)
+                .SetProperty(x => x.UpdatedUtc, DateTime.UtcNow), cancellationToken);
+        return rows == 1;
+    }
 }

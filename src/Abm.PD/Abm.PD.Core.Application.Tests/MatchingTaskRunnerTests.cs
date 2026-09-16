@@ -42,6 +42,8 @@ public class MatchingTaskRunnerTests
         };
     }
 
+    private static int _nextSourceResourceId = 1;
+
     private static SourceResource NewSourceResource(
         Guid correlationId,
         string resourceType,
@@ -52,6 +54,9 @@ public class MatchingTaskRunnerTests
         DataSource dataSource = new() { Id = 1, Code = "test-source", DisplayName = "Test Source" };
         return new SourceResource
         {
+            // A real row's Id is a unique DB-assigned primary key; FakeSourceResourceRepository.UpdateResourceAsync
+            // looks a seeded resource up by Id the same way, so every fixture needs a distinct one.
+            Id = _nextSourceResourceId++,
             CorrelationId = correlationId,
             ResourceType = resourceType,
             SourceResourceId = resourceId,

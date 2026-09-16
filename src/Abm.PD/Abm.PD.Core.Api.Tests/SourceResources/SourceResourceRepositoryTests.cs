@@ -151,4 +151,34 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
             persisted.Where(x => x.ResourceType == "Endpoint"),
             x => Assert.Equal(x.CreatedUtc, x.UpdatedUtc));
     }
+
+    [Fact]
+    public async Task GetResourceIdDictonaryAsync_KeysBySourceReference_AndOnlyIncludesTheMatchingCorrelationId()
+    {
+        using IServiceScope setupScope = Fixture.Services.CreateScope();
+        DataSource dataSource = await NewPersistedDataSourceAsync(setupScope.ServiceProvider);
+        ISourceResourceRepository setupRepository = setupScope.ServiceProvider.GetRequiredService<ISourceResourceRepository>();
+
+        Guid correlationId = Guid.NewGuid();
+        SourceResource practitioner = NewSourceResource(dataSource, correlationId: correlationId, resourceType: "Practitioner", resourceId: "1");
+        SourceResource endpoint = NewSourceResource(dataSource, correlationId: correlationId, resourceType: "Endpoint", resourceId: "2");
+        SourceResource otherCorrelation = NewSourceResource(dataSource, correlationId: Guid.NewGuid(), resourceType: "Practitioner", resourceId: "1");
+        await setupRepository.AddRangeAsync([practitioner, endpoint, otherCorrelation], CancellationToken.None);
+
+        using IServiceScope readScope = Fixture.Services.CreateScope();
+        ISourceResourceRepository repository = readScope.ServiceProvider.GetRequiredService<ISourceResourceRepository>();
+
+        Dictionary<string, SourceResourceIdLookup> lookup =
+            await repository.GetResourceIdDictionaryAsync(correlationId, CancellationToken.None);
+
+        Assert.Equal(2, lookup.Count);
+
+        SourceResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.SourceResourceId}"];
+        Assert.Equal($"Practitioner/{practitioner.TargetResourceId}", practitionerLookup.TargetResourceReference);
+        Assert.Equal(practitioner.Id, practitionerLookup.SourceResourceId);
+
+        SourceResourceIdLookup endpointLookup = lookup[$"Endpoint/{endpoint.SourceResourceId}"];
+        Assert.Equal($"Endpoint/{endpoint.TargetResourceId}", endpointLookup.TargetResourceReference);
+        Assert.Equal(endpoint.Id, endpointLookup.SourceResourceId);
+    }
 }

@@ -5,6 +5,7 @@ using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Microsoft.Extensions.Logging;
 using FhirResource = Hl7.Fhir.Model.Resource;
+using Abm.PD.Core.Application.Extensions;
 
 namespace Abm.PD.Core.Application.MatchingTaskRunner;
 
@@ -36,6 +37,9 @@ public class MatchingTaskRunner(
         int processedCount = 0;
         int failedCount = 0;
 
+        Dictionary<string, SourceResourceIdLookup> sourceResourceIdDictionary = await sourceResourceRepository.
+            GetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
+        
         foreach (string resourceType in ResourceTypes)
         {
             await foreach (SourceResource sourceResource in
@@ -46,8 +50,21 @@ public class MatchingTaskRunner(
                     FhirResource? resource = JsonSerializer.Deserialize<FhirResource>(
                         sourceResource.Resource, FhirJsonSerializerOptions);
                     ArgumentNullException.ThrowIfNull(resource);
-
-                    logger.LogInformation("{ResourceType}/{ResourceId}", resource.TypeName,  resource.Id);
+                    
+                    logger.LogInformation("Resource: {ResourceType}/{ResourceId} to target: {TargetResourceType}/{TargetResourceId}", 
+                        resource.TypeName,  
+                        resource.Id,
+                        resource.TypeName,
+                        sourceResource.TargetResourceId);
+                    
+                    List<ResourceReference> resourceReferenceList  = resource.GetAllResourceReferences();
+                    resource.Id = sourceResource.TargetResourceId.ToString();
+                    UpdateResourceReferences(sourceResource.Id, resourceReferenceList, sourceResourceIdDictionary);
+                    
+                    await sourceResourceRepository.UpdateResourceAsync(
+                        id: sourceResource.Id, 
+                        resource: await resource.ToJsonAsync(), 
+                        cancellationToken: cancellationToken);
                     
                     processedCount++;
                 }
@@ -66,5 +83,38 @@ public class MatchingTaskRunner(
         }
 
         return new MatchingTaskResult(ProcessedCount: processedCount, FailedCount: failedCount);
+    }
+
+    private void UpdateResourceReferences(
+        int sourceResourceId,
+        List<ResourceReference> resourceReferenceList,
+        Dictionary<string, SourceResourceIdLookup> sourceResourceIdDictionary)
+    {
+        foreach (ResourceReference resourceReference in resourceReferenceList)
+        {
+            if (string.IsNullOrWhiteSpace(resourceReference.Reference))
+            {
+                continue;
+            }
+            
+            if (!sourceResourceIdDictionary.TryGetValue(resourceReference.Reference.Trim(), out SourceResourceIdLookup? sourceResourceIdLookup))
+            {
+                logger.LogError("Found a resource reference which does not reference another resource from the same " +
+                                "CorrectionID batch, unable to updates the reference's resource Id from its source to its target. " +
+                                "Reference: {Reference}, found in {Entity}.id: {Id}",
+                    resourceReference.Reference.Trim(), 
+                    nameof(SourceResource), 
+                    sourceResourceId);
+                
+                continue;
+            }
+            
+            logger.LogInformation("  ResourceReference from source: {SourceResourceReference} to target: {TargetResourceReference}",
+                resourceReference.Reference, 
+                sourceResourceIdLookup.TargetResourceReference);
+            
+            resourceReference.Reference = sourceResourceIdLookup.TargetResourceReference;
+
+        }
     }
 }
