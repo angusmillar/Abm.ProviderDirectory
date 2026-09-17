@@ -109,7 +109,7 @@ public class MatchingTaskRunner(
                 continue;
             }
             
-            logger.LogInformation("  ResourceReference from source: {SourceResourceReference} to target: {TargetResourceReference}",
+            logger.LogInformation("  ResourceReference: {SourceResourceReference} to target: {TargetResourceReference}",
                 resourceReference.Reference, 
                 sourceResourceIdLookup.TargetResourceReference);
             
