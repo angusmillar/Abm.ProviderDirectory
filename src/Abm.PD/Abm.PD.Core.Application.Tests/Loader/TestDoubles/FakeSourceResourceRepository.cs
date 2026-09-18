@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Abm.PD.Core.Domain.Entities;
+using Abm.PD.Core.Domain.Projections;
 using Abm.PD.Core.Domain.Repositories;
 
 namespace Abm.PD.Core.Application.Tests.Loader.TestDoubles;
@@ -42,15 +43,28 @@ public sealed class FakeSourceResourceRepository : ISourceResourceRepository
         }
     }
 
-    public Task<Dictionary<string, SourceResourceIdLookup>> GetResourceIdDictionaryAsync(
+    public Task<Dictionary<string, SourceToTargetResourceIdLookup>> GetSourceToTargetResourceIdDictionaryAsync(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        Dictionary<string, SourceResourceIdLookup> lookup = SeededResources
+        Dictionary<string, SourceToTargetResourceIdLookup> lookup = SeededResources
             .Where(x => x.CorrelationId == correlationId)
             .ToDictionary(
                 x => $"{x.ResourceType}/{x.SourceResourceId}",
-                x => new SourceResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id));
+                x => new SourceToTargetResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id));
+
+        return Task.FromResult(lookup);
+    }
+
+    public Task<Dictionary<string, int>> GetTargetToIdDictionaryAsync(
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<string, int> lookup = SeededResources
+            .Where(x => x.CorrelationId == correlationId)
+            .ToDictionary(
+                x => $"{x.ResourceType}/{x.SourceResourceId}",
+                x => x.Id);
 
         return Task.FromResult(lookup);
     }

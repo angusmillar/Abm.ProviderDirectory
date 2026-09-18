@@ -1,4 +1,4 @@
-namespace Abm.PD.Core.Domain.Repositories;
+namespace Abm.PD.Core.Domain.Projections;
 
 /// <summary>
 /// One entry of ISourceResourceRepository.GetResourceIdDictonaryAsync's result, keyed by the source reference
@@ -6,6 +6,6 @@ namespace Abm.PD.Core.Domain.Repositories;
 /// primary key (Id), not SourceResource.SourceResourceId - that natural source directory id is already the
 /// dictionary key, so it is not repeated in the value.
 /// </summary>
-public sealed record SourceResourceIdLookup(
+public sealed record SourceToTargetResourceIdLookup(
     string TargetResourceReference,
     int SourceResourceId);
