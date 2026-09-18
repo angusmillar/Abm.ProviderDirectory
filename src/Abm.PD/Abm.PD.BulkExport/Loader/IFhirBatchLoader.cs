@@ -6,5 +6,6 @@ public interface IFhirBatchLoader
 {
     Task<FhirBatchLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
+        string repositoryCode,
         CancellationToken cancellationToken);
 }

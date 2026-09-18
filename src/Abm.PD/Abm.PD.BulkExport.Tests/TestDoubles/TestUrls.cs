@@ -12,6 +12,17 @@ public static class TestUrls
     public const string ServiceBaseUrl = "https://provider-directory.invalid.test/fhir";
     public const string ServiceBaseUrlWithSlash = ServiceBaseUrl + "/";
 
+    /// <summary>
+    /// The FhirNavigator repository Code the tests pretend the source provider directory is configured under.
+    /// </summary>
+    public const string SourceRepositoryCode = "ProviderConnectAustralia";
+
+    /// <summary>
+    /// The FhirNavigator repository Code the tests pretend the target provider directory, the server being
+    /// loaded, is configured under.
+    /// </summary>
+    public const string TargetRepositoryCode = "DevelopmentSmileServer";
+
     public const string JobId = "dca03739-4b96-41dd-bcaf-d6d4299d125c";
 
     public const string PollStatusUrlWithJobId =

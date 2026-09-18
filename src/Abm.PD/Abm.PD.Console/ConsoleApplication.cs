@@ -6,6 +6,7 @@ using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
 using Abm.PD.Core.Application;
 using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.Settings;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,12 +27,12 @@ public class ConsoleApplication(
     ILogger<ConsoleApplication> logger,
     IOptions<ConsoleApplicationSettings> appSettings,
     IFhirExporter fhirExporter,
-    //IFhirBatchLoader fhirBatchLoader,
     IFhirDiskWriter fhirDiskWriter)
 {
+
+    private const string FhirNavigatorRepositoryCode = "ProviderConnectAustralia";
     private Stopwatch? Stopwatch;
     private TimeSpan PollingTimeSpan = TimeSpan.FromSeconds(30);
-
 
     public async Task Run(
         CancellationToken cancellationToken)
@@ -50,7 +51,7 @@ public class ConsoleApplication(
         //     fromDateTime: DateTimeSupport.GetDateTimeOffset("2020-01-01T00:00:00+10:00"));
 
         FhirBulkExportManifest? fhirBulkExportManifest =
-            await fhirExporter.RequestDownloadManifest(parameters, cancellationToken);
+            await fhirExporter.RequestDownloadManifest(parameters, FhirNavigatorRepositoryCode, cancellationToken);
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
         

@@ -14,6 +14,7 @@ public interface IFhirExporter
 
     Task<FhirBulkExportManifest?> RequestDownloadManifest(
         Parameters parameters,
+        string repositoryCode,
         CancellationToken cancellationToken);
 
     IAsyncEnumerable<FhirBulkExportResource> StreamedExportFileList(

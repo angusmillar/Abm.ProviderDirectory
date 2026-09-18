@@ -1,5 +1,6 @@
 using Abm.PD.Core.Api.Tests.Fixtures;
 using Abm.PD.Core.Domain.Entities;
+using Abm.PD.Core.Domain.Projections;
 using Abm.PD.Core.Domain.Repositories;
 using Abm.PD.Core.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -168,16 +169,16 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         using IServiceScope readScope = Fixture.Services.CreateScope();
         ISourceResourceRepository repository = readScope.ServiceProvider.GetRequiredService<ISourceResourceRepository>();
 
-        Dictionary<string, SourceResourceIdLookup> lookup =
-            await repository.GetResourceIdDictionaryAsync(correlationId, CancellationToken.None);
+        Dictionary<string, SourceToTargetResourceIdLookup> lookup =
+            await repository.GetSourceToTargetResourceIdDictionaryAsync(correlationId, CancellationToken.None);
 
         Assert.Equal(2, lookup.Count);
 
-        SourceResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.SourceResourceId}"];
+        SourceToTargetResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.SourceResourceId}"];
         Assert.Equal($"Practitioner/{practitioner.TargetResourceId}", practitionerLookup.TargetResourceReference);
         Assert.Equal(practitioner.Id, practitionerLookup.SourceResourceId);
 
-        SourceResourceIdLookup endpointLookup = lookup[$"Endpoint/{endpoint.SourceResourceId}"];
+        SourceToTargetResourceIdLookup endpointLookup = lookup[$"Endpoint/{endpoint.SourceResourceId}"];
         Assert.Equal($"Endpoint/{endpoint.TargetResourceId}", endpointLookup.TargetResourceReference);
         Assert.Equal(endpoint.Id, endpointLookup.SourceResourceId);
     }

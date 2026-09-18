@@ -20,11 +20,12 @@ public class FhirExporter(
 
     public async Task<FhirBulkExportManifest?> RequestDownloadManifest(
         Parameters parameters,
+        string repositoryCode,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("== Submit Request ================================================================");
         logger.LogInformation("FHIR Bulk Data Export session started");
-        BulkExportState = await fhirBulkExporter.BeginExport(parameters, cancellationToken);
+        BulkExportState = await fhirBulkExporter.BeginExport(parameters, repositoryCode, cancellationToken);
 
         if (BulkExportState.SessionStatus == FhirBulkExportSessionStatus.InProgress)
         {

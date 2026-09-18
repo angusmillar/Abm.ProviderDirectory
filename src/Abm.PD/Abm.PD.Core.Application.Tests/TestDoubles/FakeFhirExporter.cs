@@ -21,11 +21,15 @@ public sealed class FakeFhirExporter : IFhirExporter
 
     public Parameters? ReceivedParameters { get; private set; }
 
+    public string? ReceivedRepositoryCode { get; private set; }
+
     public Task<FhirBulkExportManifest?> RequestDownloadManifest(
         Parameters parameters,
+        string repositoryCode,
         CancellationToken cancellationToken)
     {
         ReceivedParameters = parameters;
+        ReceivedRepositoryCode = repositoryCode;
         return Task.FromResult(ManifestToReturn);
     }
 

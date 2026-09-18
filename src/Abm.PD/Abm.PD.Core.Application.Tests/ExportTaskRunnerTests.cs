@@ -1,17 +1,32 @@
 using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
+using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Application.Tests.TestDoubles;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Task = System.Threading.Tasks.Task;
 
 namespace Abm.PD.Core.Application.Tests;
 
 public class ExportTaskRunnerTests
 {
+    private static IOptions<ProviderDirectorySettings> NewProviderDirectorySettings()
+    {
+        return Options.Create(new ProviderDirectorySettings
+        {
+            FhirRepositoryCodeAssignment = new FhirRepositoryCodeAssignmentSettings
+            {
+                HealthConnectProviderDirectorySource = "ProviderConnectAustralia",
+                HealthLinkProviderDirectorySource = "HealthLink",
+                TelstraHealthProviderDirectoryTarget = "TelstraHealth",
+            },
+        });
+    }
+
     private static ExportTask NewTask()
     {
         DateTime nowUtc = DateTime.UtcNow;
@@ -49,7 +64,8 @@ public class ExportTaskRunnerTests
             ResultToReturn = new SourceResourceLoadResult(
                 SubmittedCount: 1, CommittedCount: 1, FailedCount: 0, BatchCount: 1, RetainedFailures: []),
         };
-        ExportTaskRunner.ExportTaskRunner taskRunner = new(NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, fakeExporter, fakeLoader);
+        ExportTaskRunner.ExportTaskRunner taskRunner = new(
+            NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, NewProviderDirectorySettings(), fakeExporter, fakeLoader);
         ExportTask task = NewTask();
         Guid correlationId = Guid.CreateVersion7();
 
@@ -60,6 +76,7 @@ public class ExportTaskRunnerTests
         Assert.Equal(correlationId, fakeLoader.ReceivedCorrelationId);
         Assert.Same(task.DataSource, fakeLoader.ReceivedDataSource);
         Assert.NotNull(fakeExporter.ReceivedParameters);
+        Assert.Equal("ProviderConnectAustralia", fakeExporter.ReceivedRepositoryCode);
     }
 
     [Fact]
@@ -67,7 +84,8 @@ public class ExportTaskRunnerTests
     {
         FakeFhirExporter fakeExporter = new() { ManifestToReturn = null };
         FakeSourceResourceLoader fakeLoader = new();
-        ExportTaskRunner.ExportTaskRunner taskRunner = new(NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, fakeExporter, fakeLoader);
+        ExportTaskRunner.ExportTaskRunner taskRunner = new(
+            NullLogger<ExportTaskRunner.ExportTaskRunner>.Instance, NewProviderDirectorySettings(), fakeExporter, fakeLoader);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => taskRunner.Run(NewTask(), Guid.CreateVersion7(), CancellationToken.None));

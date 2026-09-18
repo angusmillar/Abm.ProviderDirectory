@@ -6,6 +6,7 @@ using Hl7.Fhir.Serialization;
 using Microsoft.Extensions.Logging;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using Abm.PD.Core.Application.Extensions;
+using Abm.PD.Core.Domain.Projections;
 
 namespace Abm.PD.Core.Application.MatchingTaskRunner;
 
@@ -37,8 +38,8 @@ public class MatchingTaskRunner(
         int processedCount = 0;
         int failedCount = 0;
 
-        Dictionary<string, SourceResourceIdLookup> sourceResourceIdDictionary = await sourceResourceRepository.
-            GetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
+        Dictionary<string, SourceToTargetResourceIdLookup> sourceToTargetResourceIdDictionary = await sourceResourceRepository.
+            GetSourceToTargetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
         
         foreach (string resourceType in ResourceTypes)
         {
@@ -59,12 +60,12 @@ public class MatchingTaskRunner(
                     
                     List<ResourceReference> resourceReferenceList  = resource.GetAllResourceReferences();
                     resource.Id = sourceResource.TargetResourceId.ToString();
-                    UpdateResourceReferences(sourceResource.Id, resourceReferenceList, sourceResourceIdDictionary);
+                    UpdateResourceReferences(sourceResource.Id, resourceReferenceList, sourceToTargetResourceIdDictionary);
                     
                     await sourceResourceRepository.UpdateResourceAsync(
                         id: sourceResource.Id, 
                         resource: await resource.ToJsonAsync(), 
-                        cancellationToken: cancellationToken);
+                        cancellationToken: cancellationToken);  
                     
                     processedCount++;
                 }
@@ -88,7 +89,7 @@ public class MatchingTaskRunner(
     private void UpdateResourceReferences(
         int sourceResourceId,
         List<ResourceReference> resourceReferenceList,
-        Dictionary<string, SourceResourceIdLookup> sourceResourceIdDictionary)
+        Dictionary<string, SourceToTargetResourceIdLookup> sourceResourceIdDictionary)
     {
         foreach (ResourceReference resourceReference in resourceReferenceList)
         {
@@ -97,7 +98,7 @@ public class MatchingTaskRunner(
                 continue;
             }
             
-            if (!sourceResourceIdDictionary.TryGetValue(resourceReference.Reference.Trim(), out SourceResourceIdLookup? sourceResourceIdLookup))
+            if (!sourceResourceIdDictionary.TryGetValue(resourceReference.Reference.Trim(), out SourceToTargetResourceIdLookup? sourceResourceIdLookup))
             {
                 logger.LogError("Found a resource reference which does not reference another resource from the same " +
                                 "CorrectionID batch, unable to updates the reference's resource Id from its source to its target. " +

@@ -1,7 +1,10 @@
 using Abm.PD.BulkExport.DependencyInjection;
 using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.HttpClientSupport;
+using Abm.PD.BulkExport.Loader;
+using Abm.PD.BulkExport.Settings;
+using Abm.PD.BulkExport.Tests.TestDoubles;
 using FhirNavigator.FhirHttpClient;
+using Hl7.Fhir.Rest;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -13,25 +16,20 @@ namespace Abm.PD.BulkExport.Tests.DependencyInjection;
 /// The registrations are verified by resolving them, not by inspecting the ServiceCollection, so a missing
 /// dependency of FhirBulkExporter shows up here rather than at run time. Nothing here opens a connection: an
 /// HttpClient is only configured, never used.
+///
+/// AddFhirBulkExportServices no longer registers FhirNavigator itself — that moved to
+/// Abm.PD.Core.Application.DependencyInjection.ServiceCollectionExtension.AddFhirNavigatorServices, so its own
+/// tests cover the FhirNavigator wiring. IFhirHttpClientFactory and IHttpClientFactory are stood in for here
+/// instead, the same way a caller composing the real app would have already registered them.
 /// </summary>
 public class ServiceCollectionExtensionTests
 {
-    private const string ServiceBaseUrl = "https://provider-directory.invalid.test/fhir";
-
     private static IConfiguration Configuration(
         Dictionary<string, string?>? overrides = null)
     {
         Dictionary<string, string?> values = new()
         {
-            ["Time:ServiceDefaultTimeZone"] = "10:00",
-            ["FhirNavigator:UserAgentName"] = "Abm.PD.BulkExport.Tests",
-            ["FhirNavigator:UserAgentVersion"] = "1.0",
-            ["FhirNavigator:FhirRepositories:0:Code"] = HttpClientType.ProviderConnectAustralia,
-            ["FhirNavigator:FhirRepositories:0:DisplayName"] = "Provider Connect Australia",
-            ["FhirNavigator:FhirRepositories:0:ServiceBaseUrl"] = ServiceBaseUrl,
-            ["FhirNavigator:FhirRepositories:0:UseOAuth2"] = "false",
-            ["FhirNavigator:FhirRepositories:0:UseBasicAuth"] = "false",
-            ["FhirNavigator:FhirRepositories:0:UseBearerToken"] = "false"
+            ["Time:ServiceDefaultTimeZone"] = "10:00"
         };
 
         if (overrides is not null)
@@ -50,6 +48,13 @@ public class ServiceCollectionExtensionTests
     {
         ServiceCollection services = new();
         services.AddLogging();
+
+        //Stands in for FhirNavigator's own registrations, which a real composition root adds via
+        //AddFhirNavigatorServices before calling AddFhirBulkExportServices.
+        services.AddHttpClient();
+        services.AddSingleton<IFhirHttpClientFactory>(
+            new StubFhirHttpClientFactory(new FhirClient(new Uri(TestUrls.ServiceBaseUrl), new HttpClient())));
+
         services.AddFhirBulkExportServices(configuration ?? Configuration());
         return services.BuildServiceProvider(validateScopes: true);
     }
@@ -63,6 +68,17 @@ public class ServiceCollectionExtensionTests
         IFhirBulkExporter exporter = scope.ServiceProvider.GetRequiredService<IFhirBulkExporter>();
 
         Assert.IsType<FhirBulkExporter>(exporter);
+    }
+
+    [Fact]
+    public void AddProviderDirectoryServices_TheBatchLoaderResolvesWithAllOfItsDependencies()
+    {
+        using ServiceProvider serviceProvider = BuildProvider();
+        using IServiceScope scope = serviceProvider.CreateScope();
+
+        IFhirBatchLoader loader = scope.ServiceProvider.GetRequiredService<IFhirBatchLoader>();
+
+        Assert.IsType<BulkExport.Loader.FhirBatchLoader>(loader);
     }
 
     [Fact]
@@ -139,54 +155,28 @@ public class ServiceCollectionExtensionTests
     }
 
     [Fact]
-    public void AddProviderDirectoryServices_RegistersBothClientFactoriesUnderTheRepositoryCode()
+    public void AddProviderDirectoryServices_TheStreamedExportHttpClientTimeoutDefaultsToTwoHours()
     {
-        //Both factories are keyed by the repository Code, which has to match the HttpClientType constant the
-        //exporter passes in. A mismatch here is the classic configuration failure for this solution.
         using ServiceProvider serviceProvider = BuildProvider();
 
-        HttpClient httpClient = serviceProvider
-            .GetRequiredService<IHttpClientFactory>()
-            .CreateClient(HttpClientType.ProviderConnectAustralia);
+        FhirBulkExporterSettings settings =
+            serviceProvider.GetRequiredService<IOptions<FhirBulkExporterSettings>>().Value;
 
-        Assert.Equal(new Uri(ServiceBaseUrl), httpClient.BaseAddress);
-
-        Hl7.Fhir.Rest.FhirClient fhirClient = serviceProvider
-            .GetRequiredService<IFhirHttpClientFactory>()
-            .CreateClient(HttpClientType.ProviderConnectAustralia);
-
-        //Firely normalises its endpoint with a trailing slash, the HttpClient's base address is left as configured.
-        Assert.Equal(new Uri($"{ServiceBaseUrl}/"), fhirClient.Endpoint);
+        Assert.Equal(TimeSpan.FromHours(2), settings.StreamedExportHttpClientTimeout);
     }
 
     [Fact]
-    public void AddProviderDirectoryServices_AnUnknownRepositoryCodeHasNoBaseAddressConfigured()
+    public void AddProviderDirectoryServices_TheStreamedExportHttpClientTimeoutCanBeOverridden()
     {
-        //IHttpClientFactory hands back a default client for a name it has never been told about, so an
-        //unconfigured code fails as a missing BaseAddress rather than as a missing registration.
-        using ServiceProvider serviceProvider = BuildProvider();
-
-        HttpClient httpClient = serviceProvider
-            .GetRequiredService<IHttpClientFactory>()
-            .CreateClient(HttpClientType.AzurePyroFhirServer);
-
-        Assert.Null(httpClient.BaseAddress);
-    }
-
-    [Fact]
-    public void AddProviderDirectoryServices_AMissingFhirNavigatorSectionIsAStartUpFailure()
-    {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
+        using ServiceProvider serviceProvider = BuildProvider(
+            Configuration(new Dictionary<string, string?>
             {
-                ["Time:ServiceDefaultTimeZone"] = "10:00"
-            })
-            .Build();
+                ["FhirBulkExporter:StreamedExportHttpClientTimeout"] = "01:00:00"
+            }));
 
-        ServiceCollection services = new();
-        services.AddLogging();
+        FhirBulkExporterSettings settings =
+            serviceProvider.GetRequiredService<IOptions<FhirBulkExporterSettings>>().Value;
 
-        Assert.Throws<InvalidOperationException>(
-            () => services.AddFhirBulkExportServices(configuration));
+        Assert.Equal(TimeSpan.FromHours(1), settings.StreamedExportHttpClientTimeout);
     }
 }

@@ -1,7 +1,6 @@
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirBulkExport;
 using Abm.PD.BulkExport.FhirSupport;
-using Abm.PD.BulkExport.HttpClientSupport;
 using Abm.PD.BulkExport.Settings;
 using FhirNavigator.FhirHttpClient;
 using Hl7.Fhir.Model;
@@ -40,11 +39,12 @@ public class FhirBatchLoader(
     /// </summary>
     public async Task<FhirBatchLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,
+        string repositoryCode,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(exportResources);
 
-        FhirClient fhirClient = fhirHttpClientFactory.CreateClient(HttpClientType.TargetProviderDirectoryServer);
+        FhirClient fhirClient = fhirHttpClientFactory.CreateClient(repositoryCode);
 
         int batchSize = settings.Value.BatchSize;
         LoadTally tally = new();
@@ -74,7 +74,7 @@ public class FhirBatchLoader(
                 //idle and reset it.
                 await AwaitCommitInFlight();
 
-                commitInFlight = CommitBatch(fhirClient, batch, tally, cancellationToken);
+                commitInFlight = CommitBatch(fhirClient, batch, tally, repositoryCode, cancellationToken);
 
                 //A new list rather than Clear(), because the previous one still belongs to the commit in flight.
                 batch = new List<FhirBulkExportResource>(capacity: batchSize);
@@ -85,7 +85,7 @@ public class FhirBatchLoader(
             //An export will not divide evenly into batches, so the remainder is still to be committed.
             if (batch.Count > 0)
             {
-                await CommitBatch(fhirClient, batch, tally, cancellationToken);
+                await CommitBatch(fhirClient, batch, tally, repositoryCode, cancellationToken);
             }
         }
         finally
@@ -107,7 +107,7 @@ public class FhirBatchLoader(
             }
         }
 
-        LogSummary(tally);
+        LogSummary(tally, repositoryCode);
 
         return new FhirBatchLoadResult(
             SubmittedCount: tally.SubmittedCount,
@@ -155,6 +155,7 @@ public class FhirBatchLoader(
         FhirClient fhirClient,
         List<FhirBulkExportResource> batch,
         LoadTally tally,
+        string repositoryCode,
         CancellationToken cancellationToken)
     {
         int batchNumber = ++tally.BatchCount;
@@ -169,7 +170,7 @@ public class FhirBatchLoader(
             "Committing batch {BatchNumber} of {EntryCount} resource(s) to {RepositoryCode}",
             batchNumber,
             batch.Count,
-            HttpClientType.TargetProviderDirectoryServer);
+            repositoryCode);
 
         Bundle? responseBundle = await fhirClient.TransactionAsync(requestBundle, cancellationToken);
 
@@ -286,14 +287,15 @@ public class FhirBatchLoader(
     }
 
     private void LogSummary(
-        LoadTally tally)
+        LoadTally tally,
+        string repositoryCode)
     {
         logger.LogInformation(
             "Load complete: {CommittedCount} of {SubmittedCount} resource(s) committed to {RepositoryCode} over " +
             "{BatchCount} batch(es), {FailedCount} failed",
             tally.CommittedCount,
             tally.SubmittedCount,
-            HttpClientType.TargetProviderDirectoryServer,
+            repositoryCode,
             tally.BatchCount,
             tally.FailedCount);
     }

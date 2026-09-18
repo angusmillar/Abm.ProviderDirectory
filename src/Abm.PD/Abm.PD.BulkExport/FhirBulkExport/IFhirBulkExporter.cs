@@ -5,7 +5,7 @@ namespace Abm.PD.BulkExport.FhirBulkExport;
 
 public interface IFhirBulkExporter
 {
-    Task<FhirBulkExportState> BeginExport(Parameters parameters, CancellationToken cancellationToken);
+    Task<FhirBulkExportState> BeginExport(Parameters parameters, string repositoryCode, CancellationToken cancellationToken);
 
     Task<FhirBulkExportState> PollExport(
         CancellationToken cancellationToken);

@@ -1,7 +1,6 @@
 using System.Net;
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.HttpClientSupport;
 using Abm.PD.BulkExport.Tests.TestData;
 using Abm.PD.BulkExport.Tests.TestDoubles;
 using Hl7.Fhir.Model;
@@ -42,7 +41,7 @@ public class FhirBulkExporterPollExportTests
     }
 
     [Fact]
-    public async Task PollExport_UsesTheProviderConnectAustraliaHttpClient()
+    public async Task PollExport_UsesTheHttpClientOfTheRepositoryCodeExportBeganWith()
     {
         using FhirBulkExporterHarness harness = new();
         await harness.ArriveAtInProgress();
@@ -51,7 +50,7 @@ public class FhirBulkExporterPollExportTests
         await harness.Exporter.PollExport(CancellationToken.None);
 
         Assert.Equal(
-            HttpClientType.ProviderConnectAustralia,
+            TestUrls.SourceRepositoryCode,
             Assert.Single(harness.HttpClientFactory.RequestedClientNames));
     }
 
@@ -230,13 +229,13 @@ public class FhirBulkExporterPollExportTests
     {
         using FhirBulkExporterHarness harness = new(serviceBaseUrl: null);
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
-        await harness.Exporter.BeginExport(new Parameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(new Parameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         FhirBulkExportException exception = await Assert.ThrowsAsync<FhirBulkExportException>(
             () => harness.Exporter.PollExport(CancellationToken.None));
 
         Assert.Contains("BaseAddress", exception.Message);
-        Assert.Contains(HttpClientType.ProviderConnectAustralia, exception.Message);
+        Assert.Contains(TestUrls.SourceRepositoryCode, exception.Message);
     }
 
     [Fact]
@@ -248,7 +247,7 @@ public class FhirBulkExporterPollExportTests
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
         harness.Handler.RespondTo(HttpMethod.Get, "$export-poll-status", () => HttpResponses.PollInProgress());
 
-        await harness.Exporter.BeginExport(new Parameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(new Parameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
         await harness.Exporter.PollExport(CancellationToken.None);
 
         Assert.Equal(
@@ -267,7 +266,7 @@ public class FhirBulkExporterPollExportTests
                 $"{TestUrls.ServiceBaseUrlWithSlash}$export-poll-status?_jobId=job%20one%2Btwo"));
         harness.Handler.RespondTo(HttpMethod.Get, "$export-poll-status", () => HttpResponses.PollInProgress());
 
-        await harness.Exporter.BeginExport(new Parameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(new Parameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
         await harness.Exporter.PollExport(CancellationToken.None);
 
         //The job id decoded out of the Location header is "job one+two", so it has to be re-escaped on the way

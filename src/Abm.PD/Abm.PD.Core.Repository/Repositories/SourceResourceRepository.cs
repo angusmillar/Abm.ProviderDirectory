@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Abm.PD.Core.Domain.Entities;
+using Abm.PD.Core.Domain.Projections;
 using Abm.PD.Core.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,7 +52,7 @@ public class SourceResourceRepository(ProviderDirectoryDbContext dbContext) : IS
         }
     }
 
-    public async Task<Dictionary<string, SourceResourceIdLookup>> GetResourceIdDictionaryAsync(
+    public async Task<Dictionary<string, SourceToTargetResourceIdLookup>> GetSourceToTargetResourceIdDictionaryAsync(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -63,7 +64,20 @@ public class SourceResourceRepository(ProviderDirectoryDbContext dbContext) : IS
             .Select(x => new { x.Id, x.ResourceType, x.SourceResourceId, x.TargetResourceId })
             .ToDictionaryAsync(
                 x => $"{x.ResourceType}/{x.SourceResourceId}",
-                x => new SourceResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id),
+                x => new SourceToTargetResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id),
+                cancellationToken);
+    }
+    
+    public async Task<Dictionary<string, int>> GetTargetToIdDictionaryAsync(
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.SourceResources
+            .Where(x => x.CorrelationId == correlationId)
+            .Select(x => new { x.Id, x.ResourceType, x.TargetResourceId })
+            .ToDictionaryAsync(
+                x => $"{x.ResourceType}/{x.TargetResourceId}",
+                x => x.Id,
                 cancellationToken);
     }
 

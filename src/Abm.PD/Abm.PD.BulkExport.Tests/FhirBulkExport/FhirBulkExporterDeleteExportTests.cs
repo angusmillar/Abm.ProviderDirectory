@@ -182,6 +182,6 @@ public class FhirBulkExporterDeleteExportTests
         await harness.Exporter.DeleteExport(CancellationToken.None);
 
         await Assert.ThrowsAsync<BulkExport.Exceptions.FhirBulkExportException>(
-            () => harness.Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
     }
 }

@@ -1,6 +1,8 @@
 using Abm.PD.BulkExport.FhirBulkExport;
+using Abm.PD.BulkExport.Settings;
 using Hl7.Fhir.Rest;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Abm.PD.BulkExport.Tests.TestDoubles;
 
@@ -15,14 +17,12 @@ public sealed class FhirBulkExporterHarness : IDisposable
 {
     public FhirBulkExporterHarness(
         DateTimeOffset? now = null,
-        string? serviceBaseUrl = TestUrls.ServiceBaseUrl)
+        string? serviceBaseUrl = TestUrls.ServiceBaseUrl,
+        TimeSpan? streamedExportHttpClientTimeout = null)
     {
         Handler = new StubHttpMessageHandler();
 
-        HttpClient = new HttpClient(Handler, disposeHandler: false)
-        {
-            BaseAddress = serviceBaseUrl is null ? null : new Uri(serviceBaseUrl)
-        };
+        Uri? baseAddress = serviceBaseUrl is null ? null : new Uri(serviceBaseUrl);
 
         FhirClient = new FhirClient(
             endpoint: new Uri(serviceBaseUrl ?? TestUrls.ServiceBaseUrl),
@@ -35,18 +35,21 @@ public sealed class FhirBulkExporterHarness : IDisposable
 
         DateTimeProvider = new StubDateTimeProvider(now ?? new DateTimeOffset(2026, 8, 31, 9, 0, 0, TimeSpan.FromHours(10)), TimeSpan.FromHours(10));
         FhirHttpClientFactory = new StubFhirHttpClientFactory(FhirClient);
-        HttpClientFactory = new StubHttpClientFactory(HttpClient);
+        HttpClientFactory = new StubHttpClientFactory(Handler, baseAddress);
 
         Exporter = new FhirBulkExporter(
             logger: NullLogger<FhirBulkExporter>.Instance,
             dateTimeProvider: DateTimeProvider,
             fhirHttpClientFactory: FhirHttpClientFactory,
-            httpClientFactory: HttpClientFactory);
+            httpClientFactory: HttpClientFactory,
+            settings: Options.Create(new FhirBulkExporterSettings
+            {
+                StreamedExportHttpClientTimeout = streamedExportHttpClientTimeout
+                                                   ?? new FhirBulkExporterSettings().StreamedExportHttpClientTimeout
+            }));
     }
 
     public StubHttpMessageHandler Handler { get; }
-
-    public HttpClient HttpClient { get; }
 
     public FhirClient FhirClient { get; }
 
@@ -69,7 +72,7 @@ public sealed class FhirBulkExporterHarness : IDisposable
         Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
         Handler.RespondTo(HttpMethod.Get, "$export-poll-status", () => HttpResponses.PollComplete(manifestJson));
 
-        await Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), cancellationToken);
+        await Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), TestUrls.SourceRepositoryCode, cancellationToken);
         return await Exporter.PollExport(cancellationToken);
     }
 
@@ -80,13 +83,12 @@ public sealed class FhirBulkExporterHarness : IDisposable
         CancellationToken cancellationToken = default)
     {
         Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
-        return await Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), cancellationToken);
+        return await Exporter.BeginExport(new Hl7.Fhir.Model.Parameters(), TestUrls.SourceRepositoryCode, cancellationToken);
     }
 
     public void Dispose()
     {
         FhirClient.Dispose();
-        HttpClient.Dispose();
         Handler.Dispose();
     }
 }

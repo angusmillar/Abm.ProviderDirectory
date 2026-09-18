@@ -22,7 +22,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 4);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         Assert.Equal(2, result.BatchCount);
         Assert.Equal(4, result.CommittedCount);
@@ -37,7 +37,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 5);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         Assert.Equal(3, result.BatchCount);
         Assert.Equal(5, result.CommittedCount);
@@ -53,7 +53,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 0);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         Assert.Equal(0, result.BatchCount);
         Assert.Empty(harness.Handler.ReceivedRequests);
@@ -66,7 +66,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 
-        await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         Bundle committed = Assert.Single(harness.CommittedBundles());
         Assert.Equal(Bundle.BundleType.Batch, committed.Type);
@@ -83,7 +83,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 
-        await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         //A version aware update would be refused with a 409 against a stub the target created earlier for a
         //reference that had not been loaded yet, and filling those stubs in is the whole point of the PUT.
@@ -101,7 +101,7 @@ public class FhirBatchLoaderTests
 
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         //The batch itself answered 200 OK, so the only report of the refused resource is its own entry.
         Assert.Equal(1, result.CommittedCount);
@@ -128,7 +128,7 @@ public class FhirBatchLoaderTests
             RecordingExportResourceSource.ExportResource(new Practitioner { Id = "3" }, lineNumber: 3)
         ]);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         //A PUT addresses the resource by its id, so the resource without one is skipped and the other two still
         //fill a batch between them.
@@ -147,7 +147,7 @@ public class FhirBatchLoaderTests
         harness.RespondToEveryCommit(() => HttpResponses.BatchResponseAll("422 Unprocessable Entity", 4));
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 4);
 
-        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        FhirBatchLoadResult result = await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         //Every failure is counted, but a load that fails on every resource must not grow a list in proportion to
         //the size of the export.
@@ -180,7 +180,7 @@ public class FhirBatchLoaderTests
                 return gated;
             });
 
-        Task<FhirBatchLoadResult> loadTask = harness.Loader.Load(source.ReadAsync(), CancellationToken.None);
+        Task<FhirBatchLoadResult> loadTask = harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         //While the first commit is still in flight the loader must gather the next batch, so the read reaches
         //four resources: the two being committed and the two filling the batch behind them.
@@ -209,7 +209,7 @@ public class FhirBatchLoaderTests
         //The retry policy has already given up by the time a commit fails, so this is systemic rather than one
         //bad resource, and the load stops instead of carrying on into the rest of the export.
         await Assert.ThrowsAsync<FhirOperationException>(
-            () => harness.Loader.Load(source.ReadAsync(), CancellationToken.None));
+            () => harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None));
 
         Assert.True(source.PulledCount < 6);
     }
@@ -224,7 +224,7 @@ public class FhirBatchLoaderTests
         //Without one response entry per request entry, in order, no outcome can be matched to the resource that
         //produced it, so the counts are not quietly reported against the wrong resources.
         FhirBulkLoadException exception = await Assert.ThrowsAsync<FhirBulkLoadException>(
-            () => harness.Loader.Load(source.ReadAsync(), CancellationToken.None));
+            () => harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None));
 
         Assert.Contains("response entries", exception.Message);
     }

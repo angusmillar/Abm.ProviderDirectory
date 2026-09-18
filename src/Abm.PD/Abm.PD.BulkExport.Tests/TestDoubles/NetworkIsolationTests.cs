@@ -17,7 +17,7 @@ public class NetworkIsolationTests
         using FhirBulkExporterHarness harness = new();
 
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => harness.Exporter.BeginExport(new Parameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(new Parameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
 
         Assert.Contains("no scripted response", exception.Message);
     }

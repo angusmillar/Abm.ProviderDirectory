@@ -359,6 +359,25 @@ public class FhirBulkExporterGetExportTests
     }
 
     [Fact]
+    public async Task GetExport_SetsTheConfiguredTimeoutOnTheHttpClientItStreamsWith()
+    {
+        //The default HttpClientFactory timeout is end to end and would otherwise bound how long the download may
+        //take, so GetExport has to set its own client's Timeout before it sends anything.
+        using FhirBulkExporterHarness harness = new(streamedExportHttpClientTimeout: TimeSpan.FromMinutes(37));
+        await harness.ArriveAtCompleted(BulkExportTestData.SingleOutputFileManifest());
+        harness.Handler.RespondToUrl(
+            TestUrls.PractitionerOutputFileUrl,
+            () => HttpResponses.NdJson(BulkExportTestData.PractitionerNdJson));
+
+        await DrainAsync(harness.Exporter.GetExport(CancellationToken.None));
+
+        //ArriveAtCompleted's own PollExport call already asked the same factory for a client, so GetExport's is
+        //the last one handed out, not the only one.
+        HttpClient client = harness.HttpClientFactory.CreatedClients[^1];
+        Assert.Equal(TimeSpan.FromMinutes(37), client.Timeout);
+    }
+
+    [Fact]
     public async Task GetExport_CanBeEnumeratedMoreThanOnceFromTheSameCompletedManifest()
     {
         using FhirBulkExporterHarness harness = new();

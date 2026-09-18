@@ -1,7 +1,6 @@
 using System.Net;
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirBulkExport;
-using Abm.PD.BulkExport.HttpClientSupport;
 using Abm.PD.BulkExport.Tests.TestData;
 using Abm.PD.BulkExport.Tests.TestDoubles;
 using Hl7.Fhir.Model;
@@ -33,7 +32,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.InProgress, state.SessionStatus);
         Assert.Equal(TestUrls.JobId, state.JobId);
@@ -50,7 +49,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new(now);
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(now, state.StartTime);
     }
@@ -61,7 +60,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
 
-        await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         RecordedRequest request = Assert.Single(harness.Handler.ReceivedRequests);
 
@@ -76,7 +75,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
 
-        await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         RecordedRequest request = Assert.Single(harness.Handler.ReceivedRequests);
 
@@ -87,17 +86,17 @@ public class FhirBulkExporterBeginExportTests
     }
 
     [Fact]
-    public async Task BeginExport_AsksForTheProviderConnectAustraliaClient()
+    public async Task BeginExport_AsksForTheClientOfTheSuppliedRepositoryCode()
     {
-        //The repository code is the key both client factories are configured under, so the exporter must not
-        //drift away from the HttpClientType constant.
+        //The repository code is the key both client factories are configured under, so the exporter must ask for
+        //exactly the code it was given rather than one of its own choosing.
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted());
 
-        await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(
-            HttpClientType.ProviderConnectAustralia,
+            TestUrls.SourceRepositoryCode,
             Assert.Single(harness.FhirHttpClientFactory.RequestedClientNames));
     }
 
@@ -107,7 +106,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAcceptedWithContentLocation());
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.InProgress, state.SessionStatus);
         Assert.Equal(TestUrls.JobId, state.JobId);
@@ -120,7 +119,7 @@ public class FhirBulkExporterBeginExportTests
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.KickOffAccepted(location: null));
 
         FhirBulkExportException exception = await Assert.ThrowsAsync<FhirBulkExportException>(
-            () => harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
 
         Assert.Contains("Content-Location", exception.Message);
     }
@@ -135,7 +134,7 @@ public class FhirBulkExporterBeginExportTests
             () => HttpResponses.KickOffAccepted($"{TestUrls.ServiceBaseUrlWithSlash}$export-poll-status?_id=nope"));
 
         FhirBulkExportException exception = await Assert.ThrowsAsync<FhirBulkExportException>(
-            () => harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
 
         Assert.Contains("_jobId", exception.Message);
     }
@@ -151,7 +150,7 @@ public class FhirBulkExporterBeginExportTests
             "$export",
             () => HttpResponses.FhirJson(HttpStatusCode.OK, BulkExportTestData.OperationOutcomeJson));
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.Failed, state.SessionStatus);
         Assert.Null(state.JobId);
@@ -168,7 +167,7 @@ public class FhirBulkExporterBeginExportTests
         using FhirBulkExporterHarness harness = new();
         harness.Handler.RespondTo(HttpMethod.Post, "$export", () => HttpResponses.Empty(HttpStatusCode.OK));
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.Failed, state.SessionStatus);
         Assert.Null(state.OperationOutcome);
@@ -186,7 +185,7 @@ public class FhirBulkExporterBeginExportTests
             "$export",
             () => HttpResponses.FhirJson(HttpStatusCode.BadRequest, BulkExportTestData.OperationOutcomeJson));
 
-        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState state = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.Failed, state.SessionStatus);
         Assert.NotNull(state.OperationOutcome);
@@ -215,10 +214,10 @@ public class FhirBulkExporterBeginExportTests
                 return HttpResponses.KickOffAccepted();
             });
 
-        FhirBulkExportState failed = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState failed = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
         Assert.Equal(FhirBulkExportSessionStatus.Failed, failed.SessionStatus);
 
-        FhirBulkExportState retried = await harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None);
+        FhirBulkExportState retried = await harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None);
 
         Assert.Equal(FhirBulkExportSessionStatus.InProgress, retried.SessionStatus);
         Assert.Equal(TestUrls.JobId, retried.JobId);
@@ -232,7 +231,7 @@ public class FhirBulkExporterBeginExportTests
         await harness.ArriveAtInProgress();
 
         FhirBulkExportException exception = await Assert.ThrowsAsync<FhirBulkExportException>(
-            () => harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
 
         Assert.Contains(nameof(FhirBulkExportSessionStatus.InProgress), exception.Message);
     }
@@ -244,7 +243,7 @@ public class FhirBulkExporterBeginExportTests
         await harness.ArriveAtCompleted(BulkExportTestData.SingleOutputFileManifest());
 
         FhirBulkExportException exception = await Assert.ThrowsAsync<FhirBulkExportException>(
-            () => harness.Exporter.BeginExport(ExportParameters(), CancellationToken.None));
+            () => harness.Exporter.BeginExport(ExportParameters(), TestUrls.SourceRepositoryCode, CancellationToken.None));
 
         Assert.Contains(nameof(FhirBulkExportSessionStatus.Completed), exception.Message);
     }

@@ -10,9 +10,9 @@ using System.Web;
 using Abm.Core.Time;
 using Abm.PD.BulkExport.Exceptions;
 using Abm.PD.BulkExport.FhirSupport;
-using Abm.PD.BulkExport.HttpClientSupport;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.NdJsonSupport;
+using Abm.PD.BulkExport.Settings;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Utility;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,8 @@ public class FhirBulkExporter(
     ILogger<FhirBulkExporter> logger,
     IDateTimeProvider dateTimeProvider,
     IFhirHttpClientFactory fhirHttpClientFactory,
-    IHttpClientFactory httpClientFactory) : IFhirBulkExporter
+    IHttpClientFactory httpClientFactory,
+    IOptions<FhirBulkExporterSettings> settings) : IFhirBulkExporter
 {
     private const string ExportOperationName = "export";
     private const string ExportPollStatusOperationName = "export-poll-status";
@@ -40,6 +41,7 @@ public class FhirBulkExporter(
         new JsonSerializerOptions().ForFhir(typeof(ModelInfo).Assembly);
 
     private string? JobId;
+    private string? RepositoryCode;
     private FhirBulkExportSessionStatus CurrentSessionStatus = FhirBulkExportSessionStatus.NotStarted;
     private DateTimeOffset? StartTime;
     private DateTimeOffset? EndTime;
@@ -52,6 +54,7 @@ public class FhirBulkExporter(
     
     public async Task<FhirBulkExportState> BeginExport(
         Parameters parameters,
+        string repositoryCode,
         CancellationToken cancellationToken)
     {
         FhirBulkExportSessionStatus[] allowedToStart = [FhirBulkExportSessionStatus.NotStarted, FhirBulkExportSessionStatus.Failed];
@@ -64,11 +67,12 @@ public class FhirBulkExporter(
         StartTime = dateTimeProvider.Now;
         EndTime = null;
         JobId = null;
+        RepositoryCode = repositoryCode;
         Manifest = null;
         ProgressMessage = null;
         RetryPollAfterSeconds = null;
 
-        FhirClient fhirClient = fhirHttpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
+        FhirClient fhirClient = fhirHttpClientFactory.CreateClient(RepositoryCode);
         SetOperationRequiredHeaders(fhirClient);
 
         try
@@ -101,11 +105,12 @@ public class FhirBulkExporter(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(JobId);
-        
-        HttpClient httpClient = httpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
-        
+        ArgumentNullException.ThrowIfNull(RepositoryCode);
+
+        HttpClient httpClient = httpClientFactory.CreateClient(RepositoryCode);
+
         // Relative, no leading slash — see the BaseAddress note below.
-        Uri requestUri = new(GetBaseAddress(httpClient), $"${ExportPollStatusOperationName}?{JobIdParameterName}={Uri.EscapeDataString(JobId)}");   
+        Uri requestUri = new(GetBaseAddress(httpClient, RepositoryCode), $"${ExportPollStatusOperationName}?{JobIdParameterName}={Uri.EscapeDataString(JobId)}");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -151,11 +156,12 @@ public class FhirBulkExporter(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(JobId);
-        
-        HttpClient httpClient = httpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
-        
+        ArgumentNullException.ThrowIfNull(RepositoryCode);
+
+        HttpClient httpClient = httpClientFactory.CreateClient(RepositoryCode);
+
         // Relative, no leading slash — see the BaseAddress note below.
-        Uri requestUri = new(GetBaseAddress(httpClient), $"${ExportPollStatusOperationName}?{JobIdParameterName}={Uri.EscapeDataString(JobId)}");   
+        Uri requestUri = new(GetBaseAddress(httpClient, RepositoryCode), $"${ExportPollStatusOperationName}?{JobIdParameterName}={Uri.EscapeDataString(JobId)}");
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
         //request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/fhir+json"));
@@ -163,13 +169,14 @@ public class FhirBulkExporter(
         using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
 
         response.EnsureSuccessStatusCode();
-        
+
         if (response.StatusCode is HttpStatusCode.Accepted)
         {
             CurrentSessionStatus = FhirBulkExportSessionStatus.Deleted;
             StartTime = null;
             EndTime = null;
             JobId = null;
+            RepositoryCode = null;
             Manifest = null;
             OperationOutcome = null;
             ErrorMessages = null;
@@ -254,6 +261,7 @@ public class FhirBulkExporter(
         }
 
         ArgumentNullException.ThrowIfNull(Manifest);
+        ArgumentNullException.ThrowIfNull(RepositoryCode);
 
         if (!IsNdJsonOutputFormat(Manifest.OutputFormat))
         {
@@ -269,7 +277,11 @@ public class FhirBulkExporter(
             yield break;
         }
 
-        HttpClient httpClient = httpClientFactory.CreateClient(HttpClientType.ProviderConnectAustralia);
+        HttpClient httpClient = httpClientFactory.CreateClient(RepositoryCode);
+
+        //The default HttpClientFactory timeout is end-to-end and would otherwise bound how long this streamed
+        //read may take, so it is set here, on this call's own HttpClient instance, before any request is sent.
+        httpClient.Timeout = settings.Value.StreamedExportHttpClientTimeout;
 
         //Files referenced by the continuesInFile of an entry are themselves entries in the output array, so
         //iterating the array reads every file exactly once.
@@ -382,11 +394,12 @@ public class FhirBulkExporter(
     }
 
     private static Uri GetBaseAddress(
-        HttpClient httpClient)
+        HttpClient httpClient,
+        string repositoryCode)
     {
-        Uri baseAddress = httpClient.BaseAddress                                                                                                                                                                                            
-                          ?? throw new FhirBulkExportException(                                                                                                                                                                                           
-                              $"The {HttpClientType.ProviderConnectAustralia} HttpClient has no BaseAddress configured.");
+        Uri baseAddress = httpClient.BaseAddress
+                          ?? throw new FhirBulkExportException(
+                              $"The {repositoryCode} HttpClient has no BaseAddress configured.");
         if (!baseAddress.AbsolutePath.EndsWith('/'))
         {
             baseAddress = new Uri($"{baseAddress.AbsoluteUri}/");
@@ -433,6 +446,7 @@ public class FhirBulkExporter(
         StartTime = null;
         EndTime = null;
         JobId = null;
+        RepositoryCode = null;
         Manifest = null;
 
         ErrorMessages = [fhirOperationException.Message];
@@ -468,6 +482,7 @@ public class FhirBulkExporter(
         StartTime = null;
         EndTime = null;
         JobId = null;
+        RepositoryCode = null;
         Manifest = null;
 
         if (fhirClient.LastBodyAsResource is OperationOutcome operationOutcome)

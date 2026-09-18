@@ -22,6 +22,7 @@ builder.Services.AddOptions<ConsoleApplicationSettings>()
     .ValidateOnStart();
 
 // Add services/tools as required.
+// AddFhirBulkExportServices registers FhirNavigator itself, so it does not need to be added separately here.
 builder.Services.AddScoped<ConsoleApplication>();
 builder.Services.AddFhirBulkExportServices(builder.Configuration);
 
