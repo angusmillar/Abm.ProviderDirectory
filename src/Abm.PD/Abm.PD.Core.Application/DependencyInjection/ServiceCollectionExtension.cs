@@ -1,7 +1,9 @@
 using Abm.Core.HostedService;
 using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.FhirTaskDispatcher;
 using Abm.PD.Core.Application.Loader;
 using Abm.PD.Core.Application.SeedDirectoryTaskRunner;
+using Abm.PD.Core.Application.SeedProviderDirectoryTask;
 using Abm.PD.Core.Application.Settings;
 using FhirNavigator;
 using FhirNavigator.FhirHttpClient;
@@ -70,6 +72,8 @@ public static class ServiceCollectionExtension
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddSingleton<IFhirTaskHandlerFactory, FhirTaskHandlerFactory>();
+        
         // AddTimedHostedService<T>'s configurator runs synchronously at registration time, before the
         // host is built, so it cannot resolve IOptions<T> from the container the way the settings
         // above are read once the app starts - PollInterval is read straight off configuration here
@@ -81,10 +85,17 @@ public static class ServiceCollectionExtension
         services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskRunner>();
         services.AddScoped<ISeedDirectoryTaskRunner, SeedDirectoryTaskRunner.SeedDirectoryTaskRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
-
+        
         // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds
         // the IHostedService that ticks it - no separate AddScoped<TaskScheduler>() call.
-        services.AddTimedHostedService<TaskScheduler.TaskScheduler>(opt =>
+        // services.AddTimedHostedService<TaskScheduler.TaskScheduler>(opt =>
+        // {
+        //     opt.TriggersEvery = schedulerSettings.PollInterval;
+        // });
+        
+        services.AddKeyedSingleton<ITaskHandler, SeedProviderDirectoryTaskHandler>(FhirTaskHandlerType.SeedProviderDirectory);
+        
+        services.AddTimedHostedService<FhirTaskDispatcher.FhirTaskDispatcher>(opt =>
         {
             opt.TriggersEvery = schedulerSettings.PollInterval;
         });

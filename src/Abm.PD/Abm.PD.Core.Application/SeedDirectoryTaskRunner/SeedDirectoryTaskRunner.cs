@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Abm.PD.BulkExport.Loader;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Repositories;
 using Hl7.Fhir.Model;
@@ -38,17 +39,7 @@ public class SeedDirectoryTaskRunner(
         int processedCount = 0;
         int failedCount = 0;
 
-        Dictionary<string, SourceToTargetResourceIdLookup> sourceToTargetResourceIdDictionary = await sourceResourceRepository.
-            GetSourceToTargetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
-
-        // SourceResource carries no AssignedTargetResourceId column, so every entry comes back from the
-        // repository with AssignedTargetResourceId null - see SourceToTargetResourceIdLookup's doc comment.
-        // Generating it here, explicitly, keeps it obvious that these ids are made up on the fly for this run
-        // and not read from the database.
-        foreach (SourceToTargetResourceIdLookup lookup in sourceToTargetResourceIdDictionary.Values)
-        {
-            lookup.AssignedTargetResourceId = Guid.CreateVersion7().ToString();
-        }
+        var sourceToTargetResourceIdDictionary = await GetSourceToTargetResourceIdDictionary(cancellationToken, targetCorrelationId);
 
         foreach (string resourceType in ResourceTypes)
         {
@@ -112,6 +103,25 @@ public class SeedDirectoryTaskRunner(
         }
 
         return new SeedDirectoryTaskResult(ProcessedCount: processedCount, FailedCount: failedCount);
+    }
+
+    private async Task<Dictionary<string, SourceToTargetResourceIdLookup>> GetSourceToTargetResourceIdDictionary(
+        CancellationToken cancellationToken,
+        Guid targetCorrelationId)
+    {
+        Dictionary<string, SourceToTargetResourceIdLookup> sourceToTargetResourceIdDictionary = await sourceResourceRepository.
+            GetSourceToTargetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
+
+        // SourceResource carries no AssignedTargetResourceId column, so every entry comes back from the
+        // repository with AssignedTargetResourceId null - see SourceToTargetResourceIdLookup's doc comment.
+        // Generating it here, explicitly, keeps it obvious that these ids are made up on the fly for this run
+        // and not read from the database.
+        foreach (SourceToTargetResourceIdLookup lookup in sourceToTargetResourceIdDictionary.Values)
+        {
+            lookup.AssignedTargetResourceId = Guid.CreateVersion7().ToString();
+        }
+
+        return sourceToTargetResourceIdDictionary;
     }
 
     private void UpdateResourceReferences(
