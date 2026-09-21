@@ -1,6 +1,6 @@
 using Abm.Core.Time;
 using Abm.PD.Core.Application.ExportTaskRunner;
-using Abm.PD.Core.Application.MatchingTaskRunner;
+using Abm.PD.Core.Application.SeedDirectoryTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Application.Tests.TestDoubles;
 using Abm.PD.Core.Domain.Entities;
@@ -67,13 +67,13 @@ public class TaskSchedulerTests
         };
     }
 
-    private static MatchingTask NewMatchingTask(
+    private static SeedDirectoryTask NewSeedDirectoryTask(
         int id,
         string code,
         TaskStateId state = TaskStateId.Ready,
         int failureCount = 0)
     {
-        return new MatchingTask
+        return new SeedDirectoryTask
         {
             Id = id,
             Code = code,
@@ -102,7 +102,7 @@ public class TaskSchedulerTests
         services.AddSingleton<IExportTaskRunner>(exportTaskRunner);
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
-        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository([]));
+        services.AddSingleton<ISeedDirectoryTaskRepository>(new InMemorySeedDirectoryTaskRepository([]));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings { FailureAttemptCount = failureAttemptCount }));
@@ -128,7 +128,7 @@ public class TaskSchedulerTests
         services.AddScoped<IExportTaskRunner, ScopeTrackingExportTaskRunner>();
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository(seededTasks));
-        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository([]));
+        services.AddSingleton<ISeedDirectoryTaskRepository>(new InMemorySeedDirectoryTaskRepository([]));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));
@@ -234,17 +234,17 @@ public class TaskSchedulerTests
     }
 
     [Fact]
-    public async Task DoWork_MatchingTaskDue_RunsMatchingTaskRunnerAndMarksCompleted()
+    public async Task DoWork_SeedDirectoryTaskDue_RunsSeedDirectoryTaskRunnerAndMarksCompleted()
     {
         List<int> calls = [];
-        List<MatchingTask> seededTasks = [NewMatchingTask(1, "matching-one")];
+        List<SeedDirectoryTask> seededTasks = [NewSeedDirectoryTask(1, "matching-one")];
 
         ServiceCollection services = new();
         services.AddSingleton<IExportTaskRunner>(new ThrowingExportTaskRunner());
-        services.AddSingleton<IMatchingTaskRunner>(new StubMatchingTaskRunner(calls));
+        services.AddSingleton<ISeedDirectoryTaskRunner>(new StubSeedDirectoryTaskRunner(calls));
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository([]));
-        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository(seededTasks));
+        services.AddSingleton<ISeedDirectoryTaskRepository>(new InMemorySeedDirectoryTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));
@@ -263,16 +263,16 @@ public class TaskSchedulerTests
     }
 
     [Fact]
-    public async Task DoWork_MatchingTaskRunnerThrows_IncrementsFailureCountAndSetsFailed()
+    public async Task DoWork_SeedDirectoryTaskRunnerThrows_IncrementsFailureCountAndSetsFailed()
     {
-        List<MatchingTask> seededTasks = [NewMatchingTask(1, "matching-one")];
+        List<SeedDirectoryTask> seededTasks = [NewSeedDirectoryTask(1, "matching-one")];
 
         ServiceCollection services = new();
         services.AddSingleton<IExportTaskRunner>(new ThrowingExportTaskRunner());
-        services.AddSingleton<IMatchingTaskRunner>(new ThrowingMatchingTaskRunner());
+        services.AddSingleton<ISeedDirectoryTaskRunner>(new ThrowingSeedDirectoryTaskRunner());
         services.AddSingleton<ITaskRepository>(new InMemoryTaskRepository(seededTasks.Cast<TaskBase>().ToList()));
         services.AddSingleton<IExportTaskRepository>(new InMemoryExportTaskRepository([]));
-        services.AddSingleton<IMatchingTaskRepository>(new InMemoryMatchingTaskRepository(seededTasks));
+        services.AddSingleton<ISeedDirectoryTaskRepository>(new InMemorySeedDirectoryTaskRepository(seededTasks));
         services.AddSingleton<IDateTimeProvider>(new FixedDateTimeProvider());
         services.AddSingleton<IOptions<TaskSchedulerSettings>>(
             Options.Create(new TaskSchedulerSettings()));

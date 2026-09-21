@@ -1,7 +1,7 @@
 using Abm.Core.HostedService;
 using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
-using Abm.PD.Core.Application.MatchingTaskRunner;
+using Abm.PD.Core.Application.SeedDirectoryTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using FhirNavigator;
 using FhirNavigator.FhirHttpClient;
@@ -15,7 +15,7 @@ public static class ServiceCollectionExtension
     /// <summary>
     /// Registers FhirNavigator's IFhirHttpClientFactory and IHttpClientFactory, keyed by each configured
     /// repository's Code. Kept separate from <see cref="AddCoreProviderDirectoryServices"/> so a caller that
-    /// needs FhirNavigator but not the TaskScheduler/ExportTaskRunner/MatchingTaskRunner machinery — Abm.PD.Console
+    /// needs FhirNavigator but not the TaskScheduler/ExportTaskRunner/SeedDirectoryTaskRunner machinery — Abm.PD.Console
     /// today — can call just this one.
     ///
     /// Deliberately duplicated in Abm.PD.BulkExport.DependencyInjection.ServiceCollectionExtension, which is
@@ -79,7 +79,7 @@ public static class ServiceCollectionExtension
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
 
         services.AddScoped<IExportTaskRunner, ExportTaskRunner.ExportTaskRunner>();
-        services.AddScoped<IMatchingTaskRunner, MatchingTaskRunner.MatchingTaskRunner>();
+        services.AddScoped<ISeedDirectoryTaskRunner, SeedDirectoryTaskRunner.SeedDirectoryTaskRunner>();
         services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
 
         // AddTimedHostedService<T> already registers T (TaskScheduler) as Scoped and adds

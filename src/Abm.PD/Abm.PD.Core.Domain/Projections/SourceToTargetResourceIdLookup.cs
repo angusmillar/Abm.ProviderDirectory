@@ -7,7 +7,7 @@ namespace Abm.PD.Core.Domain.Projections;
 ///
 /// AssignedTargetResourceId always comes back null from the repository - SourceResource carries no such
 /// column, so there is nothing in the database for it to reflect. It is a settable property, rather than part
-/// of the constructor, precisely so that a caller (MatchingTaskRunner) must explicitly assign it before use -
+/// of the constructor, precisely so that a caller (SeedDirectoryTaskRunner) must explicitly assign it before use -
 /// the name and the null starting value both say the same thing: this id is generated on the fly, not read
 /// from storage.
 /// </summary>

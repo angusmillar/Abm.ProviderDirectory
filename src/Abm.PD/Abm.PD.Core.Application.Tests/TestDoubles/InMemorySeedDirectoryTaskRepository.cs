@@ -4,33 +4,33 @@ using Abm.PD.Core.Domain.Repositories;
 
 namespace Abm.PD.Core.Application.Tests.TestDoubles;
 
-// TaskScheduler re-fetches the fully-loaded MatchingTask by Id after claiming it, mirroring
+// TaskScheduler re-fetches the fully-loaded SeedDirectoryTask by Id after claiming it, mirroring
 // InMemoryExportTaskRepository - GetByIdAsync must actually work for that flow to be exercised in
 // these tests, unlike the other CRUD members, which nothing here calls.
-public sealed class InMemoryMatchingTaskRepository(List<MatchingTask> tasks) : IMatchingTaskRepository
+public sealed class InMemorySeedDirectoryTaskRepository(List<SeedDirectoryTask> tasks) : ISeedDirectoryTaskRepository
 {
-    public Task<IReadOnlyList<MatchingTask>> GetAllAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<SeedDirectoryTask>> GetAllAsync(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public Task<MatchingTask?> GetByIdAsync(
+    public Task<SeedDirectoryTask?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
     {
         return Task.FromResult(tasks.SingleOrDefault(t => t.Id == id));
     }
 
-    public Task<MatchingTask> AddAsync(
-        MatchingTask matchingTask,
+    public Task<SeedDirectoryTask> AddAsync(
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public Task<MatchingTask?> UpdateAsync(
+    public Task<SeedDirectoryTask?> UpdateAsync(
         int id,
-        MatchingTask matchingTask,
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
@@ -43,7 +43,7 @@ public sealed class InMemoryMatchingTaskRepository(List<MatchingTask> tasks) : I
         throw new NotImplementedException();
     }
 
-    public Task<IReadOnlyList<MatchingTask>> SearchAsync(
+    public Task<IReadOnlyList<SeedDirectoryTask>> SearchAsync(
         string? code,
         TaskStateId? state,
         DateTime? lastStartFrom,

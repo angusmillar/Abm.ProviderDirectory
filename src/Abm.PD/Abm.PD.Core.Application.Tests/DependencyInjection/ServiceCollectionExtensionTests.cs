@@ -8,7 +8,7 @@ namespace Abm.PD.Core.Application.Tests.DependencyInjection;
 
 /// <summary>
 /// Covers AddFhirNavigatorServices, kept separate from AddCoreProviderDirectoryServices so it can be resolved on
-/// its own — Abm.PD.Console calls only this one, not the TaskScheduler/ExportTaskRunner/MatchingTaskRunner
+/// its own — Abm.PD.Console calls only this one, not the TaskScheduler/ExportTaskRunner/SeedDirectoryTaskRunner
 /// machinery AddCoreProviderDirectoryServices also registers.
 ///
 /// Nothing here opens a connection: an HttpClient is only configured, never used.

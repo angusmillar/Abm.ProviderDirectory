@@ -8,11 +8,11 @@ using FhirResource = Hl7.Fhir.Model.Resource;
 using Abm.PD.Core.Application.Extensions;
 using Abm.PD.Core.Domain.Projections;
 
-namespace Abm.PD.Core.Application.MatchingTaskRunner;
+namespace Abm.PD.Core.Application.SeedDirectoryTaskRunner;
 
-public class MatchingTaskRunner(
-    ILogger<MatchingTaskRunner> logger,
-    ISourceResourceRepository sourceResourceRepository) : IMatchingTaskRunner
+public class SeedDirectoryTaskRunner(
+    ILogger<SeedDirectoryTaskRunner> logger,
+    ISourceResourceRepository sourceResourceRepository) : ISeedDirectoryTaskRunner
 {
     // The provider directory resource types matching operates over, in the load order noted at the
     // top of ConsoleApplication.cs.
@@ -24,16 +24,16 @@ public class MatchingTaskRunner(
     private static readonly JsonSerializerOptions FhirJsonSerializerOptions =
         new JsonSerializerOptions().ForFhir(typeof(ModelInfo).Assembly);
 
-    public async Task<MatchingTaskResult> Run(
-        MatchingTask matchingTask,
+    public async Task<SeedDirectoryTaskResult> Run(
+        SeedDirectoryTask seedDirectoryTask,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("Running {TaskType}", matchingTask.TypeId);
+        logger.LogInformation("Running {TaskType}", seedDirectoryTask.TypeId);
 
         // MetaData carries the raw CorrelationId of the ExportTask run whose source_resource rows this
         // matching run targets - distinct from correlationId above, which identifies this matching run itself.
-        Guid targetCorrelationId = Guid.Parse(matchingTask.MetaData);
+        Guid targetCorrelationId = Guid.Parse(seedDirectoryTask.MetaData);
 
         int processedCount = 0;
         int failedCount = 0;
@@ -88,7 +88,7 @@ public class MatchingTaskRunner(
                     resource.Id = targetResourceId;
                     UpdateResourceReferences(sourceResource.Id, resourceReferenceList, sourceToTargetResourceIdDictionary);
 
-                    // Disabled until the target directory write is designed - see MatchingTaskRunner's remit
+                    // Disabled until the target directory write is designed - see SeedDirectoryTaskRunner's remit
                     // for this development cycle.
                     // await sourceResourceRepository.UpdateResourceAsync(
                     //     id: sourceResource.Id,
@@ -111,7 +111,7 @@ public class MatchingTaskRunner(
             }
         }
 
-        return new MatchingTaskResult(ProcessedCount: processedCount, FailedCount: failedCount);
+        return new SeedDirectoryTaskResult(ProcessedCount: processedCount, FailedCount: failedCount);
     }
 
     private void UpdateResourceReferences(

@@ -2,7 +2,7 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Api.Contracts;
 
-public record MatchingTaskRequest(
+public record SeedDirectoryTaskRequest(
     string Code,
     string DisplayName,
     string? Description,

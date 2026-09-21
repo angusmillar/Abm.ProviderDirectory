@@ -2,10 +2,10 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Domain.Entities;
 
-public class MatchingTask : TaskBase
+public class SeedDirectoryTask : TaskBase
 {
-    public MatchingTask()
-        : base(TaskTypeId.MatchingTask)
+    public SeedDirectoryTask()
+        : base(TaskTypeId.SeedDirectoryTask)
     {
     }
     

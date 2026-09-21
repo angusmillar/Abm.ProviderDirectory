@@ -3,28 +3,28 @@ using Abm.PD.Core.Domain.Enums;
 
 namespace Abm.PD.Core.Domain.Repositories;
 
-public interface IMatchingTaskRepository
+public interface ISeedDirectoryTaskRepository
 {
-    Task<IReadOnlyList<MatchingTask>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<SeedDirectoryTask>> GetAllAsync(CancellationToken cancellationToken);
 
-    Task<MatchingTask?> GetByIdAsync(
+    Task<SeedDirectoryTask?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken);
 
-    Task<MatchingTask> AddAsync(
-        MatchingTask matchingTask,
+    Task<SeedDirectoryTask> AddAsync(
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken);
 
-    Task<MatchingTask?> UpdateAsync(
+    Task<SeedDirectoryTask?> UpdateAsync(
         int id,
-        MatchingTask matchingTask,
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<MatchingTask>> SearchAsync(
+    Task<IReadOnlyList<SeedDirectoryTask>> SearchAsync(
         string? code,
         TaskStateId? state,
         DateTime? lastStartFrom,

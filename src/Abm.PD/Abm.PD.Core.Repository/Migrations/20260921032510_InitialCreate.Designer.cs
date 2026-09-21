@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260921013609_InitialCreate")]
+    [Migration("20260921032510_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -305,7 +305,7 @@ namespace Abm.PD.Core.Repository.Migrations
                         new
                         {
                             TaskTypeId = 2,
-                            Name = "MatchingTask"
+                            Name = "SeedDirectoryTask"
                         },
                         new
                         {
@@ -328,7 +328,7 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.HasDiscriminator().HasValue(1);
                 });
 
-            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.MatchingTask", b =>
+            modelBuilder.Entity("Abm.PD.Core.Domain.Entities.SeedDirectoryTask", b =>
                 {
                     b.HasBaseType("Abm.PD.Core.Domain.Entities.TaskBase");
 

@@ -168,7 +168,7 @@ namespace Abm.PD.Core.Repository.Migrations
                 values: new object[,]
                 {
                     { 1, "ExportTask" },
-                    { 2, "MatchingTask" },
+                    { 2, "SeedDirectoryTask" },
                     { 3, "ImportTask" }
                 });
 

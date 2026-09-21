@@ -174,7 +174,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         Assert.Equal(2, lookup.Count);
 
         // AssignedTargetResourceId is not a stored column, so the repository must leave it null - populating
-        // it is MatchingTaskRunner's job, not this method's.
+        // it is SeedDirectoryTaskRunner's job, not this method's.
         SourceToTargetResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.ResourceId}"];
         Assert.Equal(practitioner.Id, practitionerLookup.Id);
         Assert.Equal("Practitioner", practitionerLookup.ResourceType);

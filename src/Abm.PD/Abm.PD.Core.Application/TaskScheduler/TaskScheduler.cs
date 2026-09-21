@@ -2,7 +2,7 @@ using Abm.Core.HostedService;
 using Abm.Core.Time;
 using Abm.PD.Core.Application.ExportTaskRunner;
 using Abm.PD.Core.Application.Loader;
-using Abm.PD.Core.Application.MatchingTaskRunner;
+using Abm.PD.Core.Application.SeedDirectoryTaskRunner;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Domain.Entities;
 using Abm.PD.Core.Domain.Enums;
@@ -16,7 +16,7 @@ namespace Abm.PD.Core.Application.TaskScheduler;
 public class TaskScheduler(
     ITaskRepository taskRepository,
     IExportTaskRepository exportTaskRepository,
-    IMatchingTaskRepository matchingTaskRepository,
+    ISeedDirectoryTaskRepository seedDirectoryTaskRepository,
     IServiceScopeFactory serviceScopeFactory,
     IDateTimeProvider dateTimeProvider,
     IOptions<TaskSchedulerSettings> settings,
@@ -54,7 +54,7 @@ public class TaskScheduler(
 
             // ImportTask still has no mapped CLR subtype at all, so a row carrying that TypeId would
             // throw during EF materialisation inside FindDueAsync instead, aborting the whole tick.
-            if (task is not ExportTask and not MatchingTask)
+            if (task is not ExportTask and not SeedDirectoryTask)
             {
                 logger.LogWarning(
                     "Task {TaskCode} has unsupported {TypeId}, marking Failed", task.Code, task.TypeId);
@@ -69,7 +69,7 @@ public class TaskScheduler(
                 continue;
             }
 
-            // Each task gets its own DI scope so its IExportTaskRunner/IMatchingTaskRunner - and the
+            // Each task gets its own DI scope so its IExportTaskRunner/ISeedDirectoryTaskRunner - and the
             // scoped IFhirExporter/IFhirBulkExporter underneath the export one - is a fresh instance.
             // FhirBulkExporter is a stateful, one-instance-one-export-session service; sharing one
             // instance across every task in a tick (as constructor injection into this class would do)
@@ -81,8 +81,8 @@ public class TaskScheduler(
                 string outcomeReason = task switch
                 {
                     ExportTask => await RunExportTask(taskScope, task.Id, correlationId, cancellationToken),
-                    MatchingTask => await RunMatchingTask(taskScope, task.Id, correlationId, cancellationToken),
-                    _ => throw new InvalidOperationException($"Task {task.Id} matched neither ExportTask nor MatchingTask despite the guard above"),
+                    SeedDirectoryTask => await RunSeedDirectoryTask(taskScope, task.Id, correlationId, cancellationToken),
+                    _ => throw new InvalidOperationException($"Task {task.Id} matched neither ExportTask nor SeedDirectoryTask despite the guard above"),
                 };
 
                 await taskRepository.RecordOutcomeAsync(
@@ -126,17 +126,17 @@ public class TaskScheduler(
         return $"Persisted {result.CommittedCount} of {result.SubmittedCount}, {result.FailedCount} failed";
     }
 
-    private async Task<string> RunMatchingTask(
+    private async Task<string> RunSeedDirectoryTask(
         IServiceScope taskScope,
         int taskId,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        MatchingTask matchingTask = await matchingTaskRepository.GetByIdAsync(taskId, cancellationToken)
-            ?? throw new InvalidOperationException($"MatchingTask {taskId} was claimed but no longer exists");
+        SeedDirectoryTask seedDirectoryTask = await seedDirectoryTaskRepository.GetByIdAsync(taskId, cancellationToken)
+            ?? throw new InvalidOperationException($"SeedDirectoryTask {taskId} was claimed but no longer exists");
 
-        IMatchingTaskRunner matchingTaskRunner = taskScope.ServiceProvider.GetRequiredService<IMatchingTaskRunner>();
-        MatchingTaskResult result = await matchingTaskRunner.Run(matchingTask, correlationId, cancellationToken);
+        ISeedDirectoryTaskRunner seedDirectoryTaskRunner = taskScope.ServiceProvider.GetRequiredService<ISeedDirectoryTaskRunner>();
+        SeedDirectoryTaskResult result = await seedDirectoryTaskRunner.Run(seedDirectoryTask, correlationId, cancellationToken);
         return $"Processed {result.ProcessedCount}, {result.FailedCount} failed";
     }
 }

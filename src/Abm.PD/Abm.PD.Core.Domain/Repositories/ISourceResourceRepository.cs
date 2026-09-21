@@ -17,7 +17,7 @@ public interface ISourceResourceRepository
         string resourceType,
         CancellationToken cancellationToken);
 
-    // Builds the whole correlation's source-to-target reference map in memory: MatchingTaskRunner needs
+    // Builds the whole correlation's source-to-target reference map in memory: SeedDirectoryTaskRunner needs
     // random access by "{ResourceType}/{ResourceId}" while it rewrites every reference on every
     // resource, so unlike GetByCorrelationIdAsync this cannot be streamed one row at a time. Every entry's
     // AssignedTargetResourceId comes back null - SourceResource carries no such column - it is left for the
@@ -26,7 +26,7 @@ public interface ISourceResourceRepository
         Guid correlationId,
         CancellationToken cancellationToken);
 
-    // UpdatedUtc is set to the moment of the call, not caller-supplied, so MatchingTaskRunner doesn't
+    // UpdatedUtc is set to the moment of the call, not caller-supplied, so SeedDirectoryTaskRunner doesn't
     // need a timestamp source of its own for what is otherwise a single-property write. Returns false
     // rather than throwing when id doesn't match a row, mirroring TaskRepository.TryClaimAsync.
     Task<bool> UpdateResourceAsync(

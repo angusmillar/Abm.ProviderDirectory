@@ -5,60 +5,60 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Abm.PD.Core.Repository.Repositories;
 
-public class MatchingTaskRepository(ProviderDirectoryDbContext dbContext) : IMatchingTaskRepository
+public class SeedDirectoryTaskRepository(ProviderDirectoryDbContext dbContext) : ISeedDirectoryTaskRepository
 {
-    public async Task<IReadOnlyList<MatchingTask>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SeedDirectoryTask>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return await dbContext.MatchingTasks
+        return await dbContext.SeedDirectoryTasks
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<MatchingTask?> GetByIdAsync(
+    public async Task<SeedDirectoryTask?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
     {
-        return await dbContext.MatchingTasks
+        return await dbContext.SeedDirectoryTasks
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public async Task<MatchingTask> AddAsync(
-        MatchingTask matchingTask,
+    public async Task<SeedDirectoryTask> AddAsync(
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken)
     {
-        dbContext.MatchingTasks.Add(matchingTask);
+        dbContext.SeedDirectoryTasks.Add(seedDirectoryTask);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return matchingTask;
+        return seedDirectoryTask;
     }
 
-    public async Task<MatchingTask?> UpdateAsync(
+    public async Task<SeedDirectoryTask?> UpdateAsync(
         int id,
-        MatchingTask matchingTask,
+        SeedDirectoryTask seedDirectoryTask,
         CancellationToken cancellationToken)
     {
-        MatchingTask? existing = await dbContext.MatchingTasks
+        SeedDirectoryTask? existing = await dbContext.SeedDirectoryTasks
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (existing is null)
         {
             return null;
         }
 
-        existing.Code = matchingTask.Code;
-        existing.DisplayName = matchingTask.DisplayName;
-        existing.Description = matchingTask.Description;
-        existing.State = matchingTask.State;
-        existing.StateReason = matchingTask.StateReason;
-        existing.TriggerEvery = matchingTask.TriggerEvery;
-        existing.StartAtUtc = matchingTask.StartAtUtc;
-        existing.EndAtUtc = matchingTask.EndAtUtc;
-        existing.MaxRunCount = matchingTask.MaxRunCount;
-        existing.LastStartUtc = matchingTask.LastStartUtc;
-        existing.LastEndUtc = matchingTask.LastEndUtc;
-        existing.MetaData = matchingTask.MetaData;
+        existing.Code = seedDirectoryTask.Code;
+        existing.DisplayName = seedDirectoryTask.DisplayName;
+        existing.Description = seedDirectoryTask.Description;
+        existing.State = seedDirectoryTask.State;
+        existing.StateReason = seedDirectoryTask.StateReason;
+        existing.TriggerEvery = seedDirectoryTask.TriggerEvery;
+        existing.StartAtUtc = seedDirectoryTask.StartAtUtc;
+        existing.EndAtUtc = seedDirectoryTask.EndAtUtc;
+        existing.MaxRunCount = seedDirectoryTask.MaxRunCount;
+        existing.LastStartUtc = seedDirectoryTask.LastStartUtc;
+        existing.LastEndUtc = seedDirectoryTask.LastEndUtc;
+        existing.MetaData = seedDirectoryTask.MetaData;
         // CreatedUtc is deliberately never copied here - immutable after insert. UpdatedUtc always
         // is, caller-owned like every other field above.
-        existing.UpdatedUtc = matchingTask.UpdatedUtc;
+        existing.UpdatedUtc = seedDirectoryTask.UpdatedUtc;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return existing;
@@ -68,26 +68,26 @@ public class MatchingTaskRepository(ProviderDirectoryDbContext dbContext) : IMat
         int id,
         CancellationToken cancellationToken)
     {
-        MatchingTask? existing = await dbContext.MatchingTasks
+        SeedDirectoryTask? existing = await dbContext.SeedDirectoryTasks
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (existing is null)
         {
             return false;
         }
 
-        dbContext.MatchingTasks.Remove(existing);
+        dbContext.SeedDirectoryTasks.Remove(existing);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    public async Task<IReadOnlyList<MatchingTask>> SearchAsync(
+    public async Task<IReadOnlyList<SeedDirectoryTask>> SearchAsync(
         string? code,
         TaskStateId? state,
         DateTime? lastStartFrom,
         DateTime? lastStartTo,
         CancellationToken cancellationToken)
     {
-        IQueryable<MatchingTask> query = dbContext.MatchingTasks
+        IQueryable<SeedDirectoryTask> query = dbContext.SeedDirectoryTasks
             .AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(code))
