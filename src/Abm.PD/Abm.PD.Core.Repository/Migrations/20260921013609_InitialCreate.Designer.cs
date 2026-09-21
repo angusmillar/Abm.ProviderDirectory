@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Abm.PD.Core.Repository.Migrations
 {
     [DbContext(typeof(ProviderDirectoryDbContext))]
-    [Migration("20260916140433_InitialCreate")]
+    [Migration("20260921013609_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -107,6 +107,12 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("resource");
 
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("resource_id");
+
                     b.Property<DateTimeOffset>("ResourceLastUpdated")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("resource_last_updated");
@@ -116,16 +122,6 @@ namespace Abm.PD.Core.Repository.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("resource_type");
-
-                    b.Property<string>("SourceResourceId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("source_resource_id");
-
-                    b.Property<Guid>("TargetResourceId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("target_resource_id");
 
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("timestamp with time zone")
@@ -137,9 +133,9 @@ namespace Abm.PD.Core.Repository.Migrations
                     b.HasIndex("DataSourceId")
                         .HasDatabaseName("ix_source_resource_data_source_id");
 
-                    b.HasIndex("CorrelationId", "ResourceType", "SourceResourceId")
+                    b.HasIndex("CorrelationId", "ResourceType", "ResourceId")
                         .IsUnique()
-                        .HasDatabaseName("ix_source_resource_correlation_id_resource_type_source_resourc");
+                        .HasDatabaseName("ix_source_resource_correlation_id_resource_type_resource_id");
 
                     b.ToTable("source_resource", (string)null);
                 });

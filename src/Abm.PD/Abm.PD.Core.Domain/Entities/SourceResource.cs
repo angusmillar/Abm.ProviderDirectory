@@ -8,12 +8,7 @@ public class SourceResource
 
     public required string ResourceType { get; set; }
 
-    public required string SourceResourceId { get; set; }
-
-    // Populated by SourceResourceLoader with a new Version 7 GUID at load time. The FHIR JSON in Resource
-    // still carries the source directory's resource.id - retargeting it, and the references that point to
-    // it, is out of scope until the local repository insert step is written.
-    public required Guid TargetResourceId { get; set; }
+    public required string ResourceId { get; set; }
 
     public required DateTimeOffset ResourceLastUpdated { get; set; }
     

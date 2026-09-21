@@ -50,21 +50,13 @@ public sealed class FakeSourceResourceRepository : ISourceResourceRepository
         Dictionary<string, SourceToTargetResourceIdLookup> lookup = SeededResources
             .Where(x => x.CorrelationId == correlationId)
             .ToDictionary(
-                x => $"{x.ResourceType}/{x.SourceResourceId}",
-                x => new SourceToTargetResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id));
-
-        return Task.FromResult(lookup);
-    }
-
-    public Task<Dictionary<string, int>> GetTargetToIdDictionaryAsync(
-        Guid correlationId,
-        CancellationToken cancellationToken)
-    {
-        Dictionary<string, int> lookup = SeededResources
-            .Where(x => x.CorrelationId == correlationId)
-            .ToDictionary(
-                x => $"{x.ResourceType}/{x.SourceResourceId}",
-                x => x.Id);
+                x => $"{x.ResourceType}/{x.ResourceId}",
+                x => new SourceToTargetResourceIdLookup
+                {
+                    Id = x.Id,
+                    ResourceType = x.ResourceType,
+                    ResourceId = x.ResourceId,
+                });
 
         return Task.FromResult(lookup);
     }

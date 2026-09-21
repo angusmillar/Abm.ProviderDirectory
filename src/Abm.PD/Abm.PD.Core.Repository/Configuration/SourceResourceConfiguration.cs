@@ -20,7 +20,7 @@ internal sealed class SourceResourceConfiguration : IEntityTypeConfiguration<Sou
         builder.Property(x => x.ResourceType)
             .HasMaxLength(ResourceTypeMaxLength);
 
-        builder.Property(x => x.SourceResourceId)
+        builder.Property(x => x.ResourceId)
             .HasMaxLength(ResourceIdMaxLength);
 
         // jsonb rather than text: Npgsql maps it straight onto this string property, it validates the
@@ -32,7 +32,7 @@ internal sealed class SourceResourceConfiguration : IEntityTypeConfiguration<Sou
         // One row per resource per run. This single unique index also serves the two read patterns
         // needed - "everything for a CorrelationId" and "this run's copy of this resource" - through
         // the leftmost prefix, so no second index is carried just for the CorrelationId-only lookup.
-        builder.HasIndex(x => new { x.CorrelationId, x.ResourceType, x.SourceResourceId })
+        builder.HasIndex(x => new { x.CorrelationId, x.ResourceType, x.ResourceId })
             .IsUnique();
 
         builder.Property(x => x.DataSourceId)

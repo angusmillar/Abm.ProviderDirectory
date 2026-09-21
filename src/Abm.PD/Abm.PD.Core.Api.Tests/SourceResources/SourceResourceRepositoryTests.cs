@@ -40,8 +40,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         {
             CorrelationId = correlationId ?? DefaultCorrelationId,
             ResourceType = resourceType,
-            SourceResourceId = resourceId,
-            TargetResourceId = Guid.CreateVersion7(),
+            ResourceId = resourceId,
             ResourceLastUpdated = DateTimeOffset.UtcNow,
             DataSourceId = dataSource.Id,
             DataSource = dataSource,
@@ -75,7 +74,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         Assert.True(persistedJson.RootElement.GetProperty("active").GetBoolean());
         Assert.Equal(DefaultCorrelationId, persisted.CorrelationId);
         Assert.Equal("Practitioner", persisted.ResourceType);
-        Assert.Equal("1", persisted.SourceResourceId);
+        Assert.Equal("1", persisted.ResourceId);
         Assert.Equal(dataSource.Id, persisted.DataSourceId);
     }
 
@@ -128,7 +127,7 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
         List<string> visitedResourceIds = [];
         await foreach (SourceResource resource in repository.GetByCorrelationIdAsync(correlationId, "Practitioner", CancellationToken.None))
         {
-            visitedResourceIds.Add(resource.SourceResourceId);
+            visitedResourceIds.Add(resource.ResourceId);
             resource.UpdatedUtc = resource.UpdatedUtc.AddDays(1);
 
             // Proves the caller can interleave a write with the still-open enumeration on the same
@@ -174,12 +173,18 @@ public class SourceResourceRepositoryTests(IntegrationTestFixture fixture) : Int
 
         Assert.Equal(2, lookup.Count);
 
-        SourceToTargetResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.SourceResourceId}"];
-        Assert.Equal($"Practitioner/{practitioner.TargetResourceId}", practitionerLookup.TargetResourceReference);
-        Assert.Equal(practitioner.Id, practitionerLookup.SourceResourceId);
+        // AssignedTargetResourceId is not a stored column, so the repository must leave it null - populating
+        // it is MatchingTaskRunner's job, not this method's.
+        SourceToTargetResourceIdLookup practitionerLookup = lookup[$"Practitioner/{practitioner.ResourceId}"];
+        Assert.Equal(practitioner.Id, practitionerLookup.Id);
+        Assert.Equal("Practitioner", practitionerLookup.ResourceType);
+        Assert.Equal(practitioner.ResourceId, practitionerLookup.ResourceId);
+        Assert.Null(practitionerLookup.AssignedTargetResourceId);
 
-        SourceToTargetResourceIdLookup endpointLookup = lookup[$"Endpoint/{endpoint.SourceResourceId}"];
-        Assert.Equal($"Endpoint/{endpoint.TargetResourceId}", endpointLookup.TargetResourceReference);
-        Assert.Equal(endpoint.Id, endpointLookup.SourceResourceId);
+        SourceToTargetResourceIdLookup endpointLookup = lookup[$"Endpoint/{endpoint.ResourceId}"];
+        Assert.Equal(endpoint.Id, endpointLookup.Id);
+        Assert.Equal("Endpoint", endpointLookup.ResourceType);
+        Assert.Equal(endpoint.ResourceId, endpointLookup.ResourceId);
+        Assert.Null(endpointLookup.AssignedTargetResourceId);
     }
 }

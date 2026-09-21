@@ -75,8 +75,7 @@ namespace Abm.PD.Core.Repository.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     correlation_id = table.Column<Guid>(type: "uuid", nullable: false),
                     resource_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    source_resource_id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    target_resource_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    resource_id = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     resource_last_updated = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     data_source_id = table.Column<int>(type: "integer", nullable: false),
                     resource = table.Column<string>(type: "jsonb", nullable: false),
@@ -180,9 +179,9 @@ namespace Abm.PD.Core.Repository.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "ix_source_resource_correlation_id_resource_type_source_resourc",
+                name: "ix_source_resource_correlation_id_resource_type_resource_id",
                 table: "source_resource",
-                columns: new[] { "correlation_id", "resource_type", "source_resource_id" },
+                columns: new[] { "correlation_id", "resource_type", "resource_id" },
                 unique: true);
 
             migrationBuilder.CreateIndex(

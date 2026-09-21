@@ -58,26 +58,19 @@ public class SourceResourceRepository(ProviderDirectoryDbContext dbContext) : IS
     {
         // Only the columns needed to build the map are projected - the source_resource row's jsonb payload is
         // sizeable per resource and this map holds every row for the correlation at once, unlike
-        // GetByCorrelationIdAsync's per-resource streaming.
+        // GetByCorrelationIdAsync's per-resource streaming. AssignedTargetResourceId is left null: it is not a
+        // stored column, so there is nothing here to read - see SourceToTargetResourceIdLookup's doc comment.
         return await dbContext.SourceResources
             .Where(x => x.CorrelationId == correlationId)
-            .Select(x => new { x.Id, x.ResourceType, x.SourceResourceId, x.TargetResourceId })
+            .Select(x => new SourceToTargetResourceIdLookup
+            {
+                Id = x.Id,
+                ResourceType = x.ResourceType,
+                ResourceId = x.ResourceId,
+            })
             .ToDictionaryAsync(
-                x => $"{x.ResourceType}/{x.SourceResourceId}",
-                x => new SourceToTargetResourceIdLookup($"{x.ResourceType}/{x.TargetResourceId}", x.Id),
-                cancellationToken);
-    }
-    
-    public async Task<Dictionary<string, int>> GetTargetToIdDictionaryAsync(
-        Guid correlationId,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.SourceResources
-            .Where(x => x.CorrelationId == correlationId)
-            .Select(x => new { x.Id, x.ResourceType, x.TargetResourceId })
-            .ToDictionaryAsync(
-                x => $"{x.ResourceType}/{x.TargetResourceId}",
-                x => x.Id,
+                x => $"{x.ResourceType}/{x.ResourceId}",
+                x => x,
                 cancellationToken);
     }
 

@@ -40,7 +40,16 @@ public class MatchingTaskRunner(
 
         Dictionary<string, SourceToTargetResourceIdLookup> sourceToTargetResourceIdDictionary = await sourceResourceRepository.
             GetSourceToTargetResourceIdDictionaryAsync(targetCorrelationId, cancellationToken);
-        
+
+        // SourceResource carries no AssignedTargetResourceId column, so every entry comes back from the
+        // repository with AssignedTargetResourceId null - see SourceToTargetResourceIdLookup's doc comment.
+        // Generating it here, explicitly, keeps it obvious that these ids are made up on the fly for this run
+        // and not read from the database.
+        foreach (SourceToTargetResourceIdLookup lookup in sourceToTargetResourceIdDictionary.Values)
+        {
+            lookup.AssignedTargetResourceId = Guid.CreateVersion7().ToString();
+        }
+
         foreach (string resourceType in ResourceTypes)
         {
             await foreach (SourceResource sourceResource in
@@ -51,22 +60,41 @@ public class MatchingTaskRunner(
                     FhirResource? resource = JsonSerializer.Deserialize<FhirResource>(
                         sourceResource.Resource, FhirJsonSerializerOptions);
                     ArgumentNullException.ThrowIfNull(resource);
-                    
-                    logger.LogInformation("Resource: {ResourceType}/{ResourceId} to target: {TargetResourceType}/{TargetResourceId}", 
-                        resource.TypeName,  
+
+                    // The resource's own target id comes from the same dictionary as every reference it holds
+                    // to another resource - it was built for this whole correlation, so this row's own key is
+                    // in it too.
+                    string ownKey = $"{sourceResource.ResourceType}/{sourceResource.ResourceId}";
+                    if (!sourceToTargetResourceIdDictionary.TryGetValue(ownKey, out SourceToTargetResourceIdLookup? ownLookup))
+                    {
+                        logger.LogError("Found no target resource id for {ResourceType}/{ResourceId}, unable to retarget it",
+                            sourceResource.ResourceType,
+                            sourceResource.ResourceId);
+
+                        failedCount++;
+                        continue;
+                    }
+
+                    // Set for every entry, including this one, immediately after the dictionary was built above.
+                    string targetResourceId = ownLookup.AssignedTargetResourceId!;
+
+                    logger.LogInformation("Resource: {ResourceType}/{ResourceId} to target: {TargetResourceType}/{TargetResourceId}",
+                        resource.TypeName,
                         resource.Id,
                         resource.TypeName,
-                        sourceResource.TargetResourceId);
-                    
+                        targetResourceId);
+
                     List<ResourceReference> resourceReferenceList  = resource.GetAllResourceReferences();
-                    resource.Id = sourceResource.TargetResourceId.ToString();
+                    resource.Id = targetResourceId;
                     UpdateResourceReferences(sourceResource.Id, resourceReferenceList, sourceToTargetResourceIdDictionary);
-                    
-                    await sourceResourceRepository.UpdateResourceAsync(
-                        id: sourceResource.Id, 
-                        resource: await resource.ToJsonAsync(), 
-                        cancellationToken: cancellationToken);  
-                    
+
+                    // Disabled until the target directory write is designed - see MatchingTaskRunner's remit
+                    // for this development cycle.
+                    // await sourceResourceRepository.UpdateResourceAsync(
+                    //     id: sourceResource.Id,
+                    //     resource: await resource.ToJsonAsync(),
+                    //     cancellationToken: cancellationToken);
+
                     processedCount++;
                 }
                 catch (Exception exception) when (exception is JsonException or ArgumentNullException)
@@ -77,7 +105,7 @@ public class MatchingTaskRunner(
                         exception,
                         "{ResourceType}/{ResourceId} for CorrelationId {CorrelationId} could not be deserialised",
                         sourceResource.ResourceType,
-                        sourceResource.SourceResourceId,
+                        sourceResource.ResourceId,
                         targetCorrelationId);
                 }
             }
@@ -110,11 +138,14 @@ public class MatchingTaskRunner(
                 continue;
             }
             
+            // Set for every entry immediately after the dictionary was built in Run, above.
+            string targetResourceReference = $"{sourceResourceIdLookup.ResourceType}/{sourceResourceIdLookup.AssignedTargetResourceId}";
+
             logger.LogInformation("  ResourceReference: {SourceResourceReference} to target: {TargetResourceReference}",
-                resourceReference.Reference, 
-                sourceResourceIdLookup.TargetResourceReference);
-            
-            resourceReference.Reference = sourceResourceIdLookup.TargetResourceReference;
+                resourceReference.Reference,
+                targetResourceReference);
+
+            resourceReference.Reference = targetResourceReference;
 
         }
     }
