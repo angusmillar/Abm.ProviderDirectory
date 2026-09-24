@@ -7,7 +7,6 @@ public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbCont
     : DbContext(options)
 {
     public DbSet<DataSource> DataSource => Set<DataSource>();
-    public DbSet<SourceResource> SourceResources => Set<SourceResource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

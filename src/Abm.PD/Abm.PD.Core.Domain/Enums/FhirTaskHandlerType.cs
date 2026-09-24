@@ -1,6 +1,6 @@
 ﻿using Abm.Core.Attributes;
 
-namespace Abm.PD.Core.Application.FhirTaskDispatcher;
+namespace Abm.PD.Core.Domain.Enums;
 
 public enum FhirTaskHandlerType
 {

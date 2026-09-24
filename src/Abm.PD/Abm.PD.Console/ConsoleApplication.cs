@@ -4,7 +4,7 @@ using Abm.PD.Console.Settings;
 using Abm.PD.BulkExport.Loader;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
-using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.BulkExportParameter;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Microsoft.Extensions.Logging;
@@ -46,7 +46,7 @@ public class ConsoleApplication(
         logger.LogInformation("== Begin Request ================================================================");
         logger.LogInformation("FHIR Bulk Data Export session started");
         
-        Parameters parameters = FhirExportQuery.GetByPostCode();
+        Parameters parameters = BulkExportParameterFactory.GetByPostCode();
         
         // Parameters parameters = FhirExportQuery.GetSmallExportParametersResource(
         //     fromDateTime: DateTimeSupport.GetDateTimeOffset("2026-08-23T00:00:00+10:00"));

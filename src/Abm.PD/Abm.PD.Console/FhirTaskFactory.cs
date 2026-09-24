@@ -1,6 +1,7 @@
 ﻿using Abm.Core.Enums;
-using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.BulkExportParameter;
 using Abm.PD.Core.Application.FhirTaskDispatcher;
+using Abm.PD.Core.Domain.Enums;
 using Hl7.Fhir.Model;
 using Task = Hl7.Fhir.Model.Task;
 
@@ -56,7 +57,7 @@ public static class FhirTaskFactory
             },
             Contained = new List<Resource>()
             {
-                FhirExportQuery.GetEveryThingFrom(
+                BulkExportParameterFactory.GetEveryThingFrom(
                     fromDateTime: DateTimeOffset.Now.Subtract(TimeSpan.FromDays(365.25 * 5)), 
                     resourceId: "#Parameters")
             }

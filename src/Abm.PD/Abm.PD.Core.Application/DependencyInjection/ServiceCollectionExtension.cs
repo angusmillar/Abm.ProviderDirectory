@@ -1,9 +1,9 @@
 using Abm.Core.HostedService;
 using Abm.PD.Core.Application.FhirTaskDispatcher;
-using Abm.PD.Core.Application.Identifers;
-using Abm.PD.Core.Application.Loader;
+using Abm.PD.Core.Application.IdentifiersSystems;
 using Abm.PD.Core.Application.SeedProviderDirectoryTask;
 using Abm.PD.Core.Application.Settings;
+using Abm.PD.Core.Domain.Enums;
 using FhirNavigator;
 using FhirNavigator.FhirHttpClient;
 using Microsoft.Extensions.Configuration;
@@ -60,12 +60,7 @@ public static class ServiceCollectionExtension
             .Bind(configuration.GetSection(TaskSchedulerSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
-        services.AddOptions<SourceResourceLoaderSettings>()
-            .Bind(configuration.GetSection(SourceResourceLoaderSettings.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
+        
         services.AddOptions<ProviderDirectorySettings>()
             .Bind(configuration.GetSection(ProviderDirectorySettings.SectionName))
             .ValidateDataAnnotations()
@@ -80,8 +75,7 @@ public static class ServiceCollectionExtension
         TaskSchedulerSettings schedulerSettings = configuration
             .GetSection(TaskSchedulerSettings.SectionName)
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
-
-        services.AddScoped<ISourceResourceLoader, SourceResourceLoader>();
+        
         services.AddSingleton<IdentifierSystemSupport>();
         
         services.AddKeyedScoped<ITaskHandler, SeedProviderDirectoryTaskHandler>(FhirTaskHandlerType.SeedProviderDirectory);

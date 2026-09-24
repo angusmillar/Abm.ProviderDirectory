@@ -1,7 +1,7 @@
 ﻿using Abm.PD.Core.Application.Settings;
 using Microsoft.Extensions.Options;
 
-namespace Abm.PD.Core.Application.Identifers;
+namespace Abm.PD.Core.Application.IdentifiersSystems;
 
 public class IdentifierSystemSupport(IOptions<ProviderDirectorySettings> providerDirectorySettings)
 {

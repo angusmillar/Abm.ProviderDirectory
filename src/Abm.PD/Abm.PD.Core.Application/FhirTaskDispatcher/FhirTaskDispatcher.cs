@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Abm.Core.Enums;
 using Abm.Core.Time;
-using Abm.PD.Core.Application.Identifers;
+using Abm.PD.Core.Application.IdentifiersSystems;
+using Abm.PD.Core.Domain.Enums;
 using Task = System.Threading.Tasks.Task;
 
 namespace Abm.PD.Core.Application.FhirTaskDispatcher;
@@ -33,9 +34,9 @@ public class FhirTaskDispatcher(
     {
         string[] repositoryCodeList =
         [
-            providerDirectorySettings.Value.FhirRepositoryCodeAssignment.TelstraHealthProviderDirectoryTarget,
-            providerDirectorySettings.Value.FhirRepositoryCodeAssignment.HealthLinkProviderDirectoryLocal,
-            providerDirectorySettings.Value.FhirRepositoryCodeAssignment.HealthConnectProviderDirectoryLocal
+            providerDirectorySettings.Value.LocalFhirRepositoryCodes.TelstraHealthProviderDirectory,
+            providerDirectorySettings.Value.LocalFhirRepositoryCodes.HealthConnectProviderDirectory,
+            providerDirectorySettings.Value.LocalFhirRepositoryCodes.HealthLinkProviderDirectory
         ];
 
         foreach (string repositoryCode in repositoryCodeList)

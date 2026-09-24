@@ -1,5 +1,6 @@
 using Abm.PD.Core.Application.DependencyInjection;
 using Abm.PD.Core.Application.FhirTaskDispatcher;
+using Abm.PD.Core.Domain.Enums;
 using FhirNavigator;
 using Microsoft.Extensions.DependencyInjection;
 using Task = System.Threading.Tasks.Task;

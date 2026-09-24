@@ -33,7 +33,6 @@ public static class ServiceCollectionExtension
 
         
         services.AddScoped<IDataSourceRepository, DataSourceRepository>();
-        services.AddScoped<ISourceResourceRepository, SourceResourceRepository>();
 
         return services;
     }

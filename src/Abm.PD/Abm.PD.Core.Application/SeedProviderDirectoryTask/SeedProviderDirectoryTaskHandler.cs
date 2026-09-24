@@ -6,8 +6,8 @@ using Abm.PD.BulkExport.Loader;
 using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
 using Abm.PD.Core.Application.FhirTaskDispatcher;
-using Abm.PD.Core.Application.Identifers;
 using Abm.PD.Core.Application.Settings;
+using Abm.PD.Core.Domain.Enums;
 using FhirNavigator;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
@@ -54,7 +54,7 @@ public class SeedProviderDirectoryTaskHandler(
 
         FhirBulkExportManifest? fhirBulkExportManifest =
             await fhirExporter.RequestDownloadManifest(parameters, providerDirectorySettings.Value
-                .FhirRepositoryCodeAssignment.HealthConnectProviderDirectoryExternal, cancellationToken);
+                .ExternalFhirRepositoryCodes.HealthConnectProviderDirectory, cancellationToken);
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
         ArgumentNullException.ThrowIfNull(fhirExporter.JobId);
