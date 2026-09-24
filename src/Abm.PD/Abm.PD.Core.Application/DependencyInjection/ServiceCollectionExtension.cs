@@ -1,7 +1,6 @@
 using Abm.Core.HostedService;
 using Abm.PD.Core.Application.FhirTaskDispatcher;
 using Abm.PD.Core.Application.IdentifiersSystems;
-using Abm.PD.Core.Application.SeedProviderDirectoryTask;
 using Abm.PD.Core.Application.Settings;
 using Abm.PD.Core.Domain.Enums;
 using FhirNavigator;
@@ -66,8 +65,10 @@ public static class ServiceCollectionExtension
             .ValidateDataAnnotations()
             .ValidateOnStart();
         
+        services.AddSingleton<IdentifierSystemSupport>();
         services.AddScoped<IFhirTaskHandlerFactory, FhirTaskHandlerFactory>();
-        
+        services.AddKeyedScoped<ITaskHandler, SeedTaskHandler.SeedTaskHandler>(FhirTaskHandlerType.SeedProviderDirectory);
+
         // AddTimedHostedService<T>'s configurator runs synchronously at registration time, before the
         // host is built, so it cannot resolve IOptions<T> from the container the way the settings
         // above are read once the app starts - PollInterval is read straight off configuration here
@@ -75,11 +76,6 @@ public static class ServiceCollectionExtension
         TaskSchedulerSettings schedulerSettings = configuration
             .GetSection(TaskSchedulerSettings.SectionName)
             .Get<TaskSchedulerSettings>() ?? new TaskSchedulerSettings();
-        
-        services.AddSingleton<IdentifierSystemSupport>();
-        
-        services.AddKeyedScoped<ITaskHandler, SeedProviderDirectoryTaskHandler>(FhirTaskHandlerType.SeedProviderDirectory);
-        
         services.AddTimedHostedService<FhirTaskDispatcher.FhirTaskDispatcher>(opt =>
         {
             opt.TriggersEvery = schedulerSettings.PollInterval;

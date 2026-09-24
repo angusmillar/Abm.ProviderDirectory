@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using Abm.Core.Enums;
-using Abm.Core.Time;
 using Abm.PD.BulkExport;
 using Abm.PD.BulkExport.Loader;
 using Abm.PD.BulkExport.Models;
@@ -12,12 +11,11 @@ using FhirNavigator;
 using Hl7.Fhir.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Task = System.Threading.Tasks.Task;
 
-namespace Abm.PD.Core.Application.SeedProviderDirectoryTask;
+namespace Abm.PD.Core.Application.SeedTaskHandler;
 
-public class SeedProviderDirectoryTaskHandler(
-    ILogger<SeedProviderDirectoryTaskHandler> logger,
+public class SeedTaskHandler(
+    ILogger<SeedTaskHandler> logger,
     IOptions<ProviderDirectorySettings> providerDirectorySettings,
     IFhirExporter fhirExporter,
     IFhirTransactionLoader fhirBatchLoader,
