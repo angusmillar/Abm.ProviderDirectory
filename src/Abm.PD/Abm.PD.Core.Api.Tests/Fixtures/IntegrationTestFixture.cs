@@ -39,8 +39,8 @@ public class IntegrationTestFixture : IAsyncLifetime
 
         // 3. Checkpoint the migrated, empty database. An ignore-list rather than an allow-list, so
         //    new tables are covered by the reset as the schema grows without needing to be added
-        //    here - only EF's migration bookkeeping and the seeded lookup tables below are carved
-        //    out, unlike the sibling PyroServer solution's justification for an allow-list.
+        //    here - only EF's migration bookkeeping is carved out today. Any future seeded lookup
+        //    table must be added here too, or the per-test reset wipes its seed data.
         await using (NpgsqlConnection checkpointConnection = new(_connectionString))
         {
             await checkpointConnection.OpenAsync();
@@ -51,10 +51,6 @@ public class IntegrationTestFixture : IAsyncLifetime
                 TablesToIgnore =
                 [
                     new Respawn.Graph.Table("__ef_migrations_history"),
-                    // Seeded reference/lookup data (see TaskStateConfiguration/TaskTypeConfiguration's
-                    // HasData) - not test data, must survive a reset like the migrations history table.
-                    new Respawn.Graph.Table("task_state"),
-                    new Respawn.Graph.Table("task_type"),
                 ],
             });
         }

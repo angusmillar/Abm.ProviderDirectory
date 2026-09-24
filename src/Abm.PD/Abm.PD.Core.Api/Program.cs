@@ -6,7 +6,6 @@ using Abm.PD.Core.Repository.DependencyInjection;
 using Abm.PD.BulkExport.DependencyInjection;
 using Abm.PD.Core.Application.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Serilog;
@@ -17,8 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
 
-// Every domain enum exposed over the API (TaskStateId, TaskTypeId) is serialised and bound by its
-// member name rather than its underlying int, so callers see "InProgress" instead of 2.
+// Every domain enum exposed over the API is serialised and bound by its member name rather than
+// its underlying int, so callers see a name instead of a number.
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -69,10 +68,7 @@ if (databaseSettings.RunMigrationsOnStartup)
 app.MapOpenApi();
 app.MapScalarApiReference();
 
-app.MapResourceEndpoints();
 app.MapDataSourceEndpoints();
-app.MapExportTaskEndpoints();
-app.MapSeedDirectoryTaskEndpoints();
 app.MapHealthCheckEndpoints();
 
 app.Run();

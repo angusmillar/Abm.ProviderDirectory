@@ -71,8 +71,8 @@ public static class ServiceCollectionExtension
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<FhirBatchLoaderSettings>()
-            .Bind(configuration.GetSection(FhirBatchLoaderSettings.SectionName))
+        services.AddOptions<FhirTransactionLoaderSettings>()
+            .Bind(configuration.GetSection(FhirTransactionLoaderSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -85,7 +85,7 @@ public static class ServiceCollectionExtension
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IFhirBulkExporter, FhirBulkExporter>();
         services.AddScoped<IFhirExporter, FhirExporter>();
-        services.AddScoped<IFhirBatchLoader, FhirBatchLoader>();
+        services.AddScoped<IFhirTransactionLoader, FhirTransactionLoader>();
         services.AddScoped<IFhirDiskWriter, FhirDiskWriter>();
 
         return services;

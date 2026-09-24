@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Abm.PD.BulkExport.Settings;
 
-public record FhirBatchLoaderSettings
+public record FhirTransactionLoaderSettings
 {
-    public const string SectionName = "FhirBatchLoader";
+    public const string SectionName = "FhirTransactionLoader";
 
     /// <summary>
     /// How many resources are gathered before a batch is committed. The target server caps both the number of

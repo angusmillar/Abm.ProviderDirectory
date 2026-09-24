@@ -11,16 +11,16 @@ using Microsoft.Extensions.Options;
 namespace Abm.PD.BulkExport.Tests.TestDoubles;
 
 /// <summary>
-/// Builds a real <see cref="FhirBatchLoader"/> whose only outbound seam, the Firely FhirClient it commits each
+/// Builds a real <see cref="FhirTransactionLoader"/> whose only outbound seam, the Firely FhirClient it commits each
 /// batch through, terminates in the test's <see cref="StubHttpMessageHandler"/>.
 ///
 /// As with the exporter's harness the FhirClient is not faked: it is the piece serialising the batch Bundle and
 /// deserialising the batch-response the loader reads its per entry outcomes from, so faking it would only test
 /// the fake.
 /// </summary>
-public sealed class FhirBatchLoaderHarness : IDisposable
+public sealed class FhirTransactionLoaderHarness : IDisposable
 {
-    public FhirBatchLoaderHarness(
+    public FhirTransactionLoaderHarness(
         int batchSize = 2,
         int maxRetainedFailures = 100)
     {
@@ -37,9 +37,9 @@ public sealed class FhirBatchLoaderHarness : IDisposable
 
         FhirHttpClientFactory = new StubFhirHttpClientFactory(FhirClient);
 
-        Loader = new FhirBatchLoader(
-            logger: NullLogger<FhirBatchLoader>.Instance,
-            settings: Options.Create(new FhirBatchLoaderSettings
+        Loader = new FhirTransactionLoader(
+            logger: NullLogger<FhirTransactionLoader>.Instance,
+            settings: Options.Create(new FhirTransactionLoaderSettings
             {
                 BatchSize = batchSize,
                 MaxRetainedFailures = maxRetainedFailures
@@ -53,13 +53,13 @@ public sealed class FhirBatchLoaderHarness : IDisposable
 
     public StubFhirHttpClientFactory FhirHttpClientFactory { get; }
 
-    public IFhirBatchLoader Loader { get; }
+    public IFhirTransactionLoader Loader { get; }
 
     /// <summary>
     /// Scripts every batch commit with the same response, built fresh per call so a route can be hit by more
     /// than one batch.
     /// </summary>
-    public FhirBatchLoaderHarness RespondToEveryCommit(
+    public FhirTransactionLoaderHarness RespondToEveryCommit(
         Func<HttpResponseMessage> respond)
     {
         Handler.RespondTo(
@@ -72,7 +72,7 @@ public sealed class FhirBatchLoaderHarness : IDisposable
     /// <summary>
     /// Answers every entry of every batch with 200 OK.
     /// </summary>
-    public FhirBatchLoaderHarness RespondToEveryCommitWithSuccess()
+    public FhirTransactionLoaderHarness RespondToEveryCommitWithSuccess()
     {
         Handler.RespondTo(
             predicate: request => request.Method == HttpMethod.Post,

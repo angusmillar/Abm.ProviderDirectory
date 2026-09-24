@@ -20,7 +20,7 @@ public class SeedProviderDirectoryTaskHandler(
     ILogger<SeedProviderDirectoryTaskHandler> logger,
     IOptions<ProviderDirectorySettings> providerDirectorySettings,
     IFhirExporter fhirExporter,
-    IFhirBatchLoader fhirBatchLoader,
+    IFhirTransactionLoader fhirBatchLoader,
     IFhirDiskWriter fhirDiskWriter) : ITaskHandler
 {
     

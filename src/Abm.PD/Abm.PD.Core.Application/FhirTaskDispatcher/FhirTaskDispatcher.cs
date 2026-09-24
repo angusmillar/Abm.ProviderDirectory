@@ -211,7 +211,7 @@ public class FhirTaskDispatcher(
         var now = dateTimeProvider.Now;
         
         task.Identifier.Add(new Identifier(
-            system: identifierSystemSupport.ProviderDirectoryTaskCorelationId.OriginalString,
+            system: identifierSystemSupport.ProviderDirectoryTaskCorrelationId.OriginalString,
             value: correlationId.ToString()));
         task.Status = Hl7.Fhir.Model.Task.TaskStatus.InProgress;
         task.StatusReason = null;

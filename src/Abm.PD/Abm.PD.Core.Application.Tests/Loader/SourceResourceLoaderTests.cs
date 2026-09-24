@@ -12,7 +12,7 @@ namespace Abm.PD.Core.Application.Tests.Loader;
 
 /// <summary>
 /// Covers turning the export's streamed resources into batches of SourceResource rows persisted through
-/// ISourceResourceRepository - the local-store analogue of Abm.PD.BulkExport.Tests' FhirBatchLoaderTests.
+/// ISourceResourceRepository - the local-store analogue of Abm.PD.BulkExport.Tests' FhirTransactionLoaderTests.
 /// </summary>
 public class SourceResourceLoaderTests
 {

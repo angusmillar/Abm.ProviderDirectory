@@ -2,7 +2,7 @@ using Abm.PD.BulkExport.FhirBulkExport;
 
 namespace Abm.PD.BulkExport.Loader;
 
-public interface IFhirBatchLoader
+public interface IFhirTransactionLoader
 {
     Task<FhirBatchLoadResult> Load(
         IAsyncEnumerable<FhirBulkExportResource> exportResources,

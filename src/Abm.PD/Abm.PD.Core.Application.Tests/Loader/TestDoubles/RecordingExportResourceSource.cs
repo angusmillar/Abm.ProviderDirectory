@@ -7,7 +7,7 @@ namespace Abm.PD.Core.Application.Tests.Loader.TestDoubles;
 
 /// <summary>
 /// Stands in for the exporter's streamed output, counting how many resources have actually been pulled from it -
-/// the same technique Abm.PD.BulkExport.Tests uses to assert FhirBatchLoader's pipelining, reproduced here so
+/// the same technique Abm.PD.BulkExport.Tests uses to assert FhirTransactionLoader's pipelining, reproduced here so
 /// this test project does not need a reference onto another test project.
 /// </summary>
 public sealed class RecordingExportResourceSource(

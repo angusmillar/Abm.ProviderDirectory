@@ -31,11 +31,8 @@ public static class ServiceCollectionExtension
                 enableRetryOnFailure: true);
         });
 
-        services.AddScoped<IResourceRepository, ResourceRepository>();
+        
         services.AddScoped<IDataSourceRepository, DataSourceRepository>();
-        services.AddScoped<IExportTaskRepository, ExportTaskRepository>();
-        services.AddScoped<ISeedDirectoryTaskRepository, SeedDirectoryTaskRepository>();
-        services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ISourceResourceRepository, SourceResourceRepository>();
 
         return services;

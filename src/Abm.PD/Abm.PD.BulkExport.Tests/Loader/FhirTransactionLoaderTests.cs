@@ -13,12 +13,12 @@ namespace Abm.PD.BulkExport.Tests.Loader;
 /// Covers the load half: turning the export's streamed resources into batch Bundles of PUT entries and reading
 /// the per entry outcomes back out of the target server's batch-response.
 /// </summary>
-public class FhirBatchLoaderTests
+public class FhirTransactionLoaderTests
 {
     [Fact]
     public async Task Load_CommitsOneBatchEachTimeTheThresholdIsReached()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 4);
 
@@ -33,7 +33,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_CommitsTheFinalPartialBatch()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 5);
 
@@ -49,7 +49,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_AnEmptyExportCommitsNothing()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 0);
 
@@ -62,24 +62,27 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_EachEntryIsAPutAddressingTheResourceByTypeAndId()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 
         await harness.Loader.Load(source.ReadAsync(), TestUrls.TargetRepositoryCode, CancellationToken.None);
 
         Bundle committed = Assert.Single(harness.CommittedBundles());
-        Assert.Equal(Bundle.BundleType.Batch, committed.Type);
+        Assert.Equal(Bundle.BundleType.Transaction, committed.Type);
         Assert.Equal(
             ["Practitioner/1", "Practitioner/2"],
             committed.Entry.Select(entry => entry.Request.Url));
+        Assert.Equal(
+            ["Practitioner/1", "Practitioner/2"],
+            committed.Entry.Select(entry => entry.FullUrl));
         Assert.All(committed.Entry, entry => Assert.Equal(Bundle.HTTPVerb.PUT, entry.Request.Method));
     }
 
     [Fact]
     public async Task Load_NoEntryCarriesAnIfMatch()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 
@@ -94,7 +97,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_ReportsTheEntriesTheTargetServerRefused()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommit(() => HttpResponses.BatchResponse(
             ("200 OK", null),
             ("422 Unprocessable Entity", "Practitioner.name is not valid")));
@@ -118,7 +121,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_AResourceWithNoIdIsReportedAndNeverSent()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommitWithSuccess();
 
         RecordingExportResourceSource source = new(
@@ -143,7 +146,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_RetainsOnlyTheConfiguredNumberOfFailures()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 4, maxRetainedFailures: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 4, maxRetainedFailures: 2);
         harness.RespondToEveryCommit(() => HttpResponses.BatchResponseAll("422 Unprocessable Entity", 4));
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 4);
 
@@ -158,7 +161,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_KeepsReadingTheExportWhileABatchCommitIsInFlight()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 6);
 
         int commitCount = 0;
@@ -202,7 +205,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_AFailureOfTheCommitItselfStopsTheLoad()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommit(() => HttpResponses.Empty(HttpStatusCode.InternalServerError));
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 6);
 
@@ -217,7 +220,7 @@ public class FhirBatchLoaderTests
     [Fact]
     public async Task Load_AResponseWithTheWrongEntryCountThrows()
     {
-        using FhirBatchLoaderHarness harness = new(batchSize: 2);
+        using FhirTransactionLoaderHarness harness = new(batchSize: 2);
         harness.RespondToEveryCommit(() => HttpResponses.BatchResponseAll("200 OK", 1));
         RecordingExportResourceSource source = RecordingExportResourceSource.OfPractitioners(count: 2);
 

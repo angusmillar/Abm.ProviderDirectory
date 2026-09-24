@@ -6,13 +6,7 @@ namespace Abm.PD.Core.Repository;
 public class ProviderDirectoryDbContext(DbContextOptions<ProviderDirectoryDbContext> options)
     : DbContext(options)
 {
-    public DbSet<Resource> Resources => Set<Resource>();
     public DbSet<DataSource> DataSource => Set<DataSource>();
-    public DbSet<TaskState> TaskStates => Set<TaskState>();
-    public DbSet<TaskType> TaskTypes => Set<TaskType>();
-    public DbSet<ExportTask> ExportTasks => Set<ExportTask>();
-    public DbSet<SeedDirectoryTask> SeedDirectoryTasks => Set<SeedDirectoryTask>();
-    public DbSet<TaskBase> Tasks => Set<TaskBase>();
     public DbSet<SourceResource> SourceResources => Set<SourceResource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

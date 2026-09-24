@@ -24,14 +24,14 @@ namespace Abm.PD.BulkExport.Loader;
 /// duplicating anything. The target server creates a stub for a reference it has not seen yet and fills that
 /// stub in when the real resource arrives later in the load, so no dependency ordering is needed here.
 /// </summary>
-public class FhirBatchLoader(
-    ILogger<FhirBatchLoader> logger,
-    IOptions<FhirBatchLoaderSettings> settings,
-    IFhirHttpClientFactory fhirHttpClientFactory) : IFhirBatchLoader
+public class FhirTransactionLoader(
+    ILogger<FhirTransactionLoader> logger,
+    IOptions<FhirTransactionLoaderSettings> settings,
+    IFhirHttpClientFactory fhirHttpClientFactory) : IFhirTransactionLoader
 {
     /// <summary>
     /// Reads the export stream to its end, committing a batch each time
-    /// <see cref="FhirBatchLoaderSettings.BatchSize"/> resources have been gathered.
+    /// <see cref="FhirTransactionLoaderSettings.BatchSize"/> resources have been gathered.
     ///
     /// A resource the target server refuses is recorded and the load carries on, because one bad resource is a
     /// data problem rather than a reason to abandon the export. A failure of the commit itself is systemic — the

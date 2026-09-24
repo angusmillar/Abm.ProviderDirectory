@@ -8,7 +8,7 @@ public class IdentifierSystemSupport(IOptions<ProviderDirectorySettings> provide
     //Local
     public readonly Uri ProviderDirectoryIgBaseUri = providerDirectorySettings.Value.FhirSystemUriSettings.ProviderDirectoryIgBaseUrl;
     
-    public readonly Uri ProviderDirectoryTaskCorelationId = new(
+    public readonly Uri ProviderDirectoryTaskCorrelationId = new(
         $"{providerDirectorySettings.Value.FhirSystemUriSettings.ProviderDirectoryIgBaseUrl.ToString().TrimEnd('/')}/id/pd-task-corelation-id");
     
     //National

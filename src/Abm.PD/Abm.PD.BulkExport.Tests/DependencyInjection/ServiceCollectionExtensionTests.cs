@@ -76,9 +76,9 @@ public class ServiceCollectionExtensionTests
         using ServiceProvider serviceProvider = BuildProvider();
         using IServiceScope scope = serviceProvider.CreateScope();
 
-        IFhirBatchLoader loader = scope.ServiceProvider.GetRequiredService<IFhirBatchLoader>();
+        IFhirTransactionLoader loader = scope.ServiceProvider.GetRequiredService<IFhirTransactionLoader>();
 
-        Assert.IsType<BulkExport.Loader.FhirBatchLoader>(loader);
+        Assert.IsType<BulkExport.Loader.FhirTransactionLoader>(loader);
     }
 
     [Fact]

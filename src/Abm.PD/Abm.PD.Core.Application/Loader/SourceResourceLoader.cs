@@ -13,9 +13,9 @@ namespace Abm.PD.Core.Application.Loader;
 /// <summary>
 /// Persists the resources of a bulk export into the local source_resource store without an intermediate disk
 /// write, by gathering them into fixed size batches and committing each as it fills - the local-store analogue
-/// of Abm.PD.BulkExport.Loader.FhirBatchLoader.
+/// of Abm.PD.BulkExport.Loader.FhirTransactionLoader.
 ///
-/// The commit is pipelined one batch deep, the same way FhirBatchLoader's is: the previous commit is awaited
+/// The commit is pipelined one batch deep, the same way FhirTransactionLoader's is: the previous commit is awaited
 /// only once the next batch has filled, so the export's response stream keeps being read while the database
 /// write is in flight. A stalled read is what lets a gateway decide the download connection has gone idle and
 /// reset it.

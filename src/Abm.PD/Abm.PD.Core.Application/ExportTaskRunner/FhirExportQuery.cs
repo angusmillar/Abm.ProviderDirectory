@@ -5,43 +5,7 @@ namespace Abm.PD.Core.Application.ExportTaskRunner;
 
 public static class FhirExportQuery
 {
-    public static Parameters FromParameter(
-        ExportParameter parameter)
-    {
-        Parameters parameters = new Parameters();
-        parameters.Parameter.Add(new Parameters.ParameterComponent
-        {
-            Name = "_outputFormat",
-            Value = new FhirString("application/fhir+ndjson"),
-        });
-
-        if (parameter.Since is not null)
-        {
-            parameters.Parameter.Add(new Parameters.ParameterComponent
-            {
-                Name = "_since",
-                Value = new Instant { Value = parameter.Since },
-            });
-        }
-
-        parameters.Parameter.Add(new Parameters.ParameterComponent
-        {
-            Name = "_type",
-            Value = new FhirString(parameter.Type),
-        });
-
-        foreach (string typeFilter in parameter.TypeFilterList)
-        {
-            parameters.Parameter.Add(new Parameters.ParameterComponent
-            {
-                Name = "_typeFilter",
-                Value = new FhirString(typeFilter),
-            });
-        }
-
-        return parameters;
-    }
-
+    
     public static Parameters GetByPostCode()
     {
         Parameters parameters = new Parameters();

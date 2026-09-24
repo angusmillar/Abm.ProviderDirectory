@@ -1,12 +1,7 @@
-using Abm.PD.Core.Api.Tests.TestDoubles;
-using Abm.PD.Core.Application;
-using Abm.PD.Core.Application.ExportTaskRunner;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Abm.PD.Core.Api.Tests.Fixtures;
 
@@ -46,9 +41,9 @@ public class CoreApiWebApplicationFactory(string connectionString) : WebApplicat
         {
             // Swaps the real ExportRunner (which would otherwise make real FHIR HTTP calls) for a
             // per-test-configurable fake, for the lifetime of this factory.
-            services.RemoveAll<IExportTaskRunner>();
-            services.AddSingleton<ConfigurableExportTaskRunner>();
-            services.AddSingleton<IExportTaskRunner>(sp => sp.GetRequiredService<ConfigurableExportTaskRunner>());
+            // services.RemoveAll<IExportTaskRunner>();
+            // services.AddSingleton<ConfigurableExportTaskRunner>();
+            // services.AddSingleton<IExportTaskRunner>(sp => sp.GetRequiredService<ConfigurableExportTaskRunner>());
         });
     }
 }
