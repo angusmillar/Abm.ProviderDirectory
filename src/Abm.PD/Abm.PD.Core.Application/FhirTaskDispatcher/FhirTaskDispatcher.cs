@@ -52,6 +52,7 @@ public class FhirTaskDispatcher(
         var groupSearchParams = new SearchParams();
 
         groupSearchParams.Add("status", Hl7.Fhir.Model.Task.TaskStatus.Ready.GetLiteral());
+        groupSearchParams.Add("code", $"{FhirTaskHandlerTypeSystem.Uri.OriginalString}|");
         groupSearchParams.Add("_count", "100");
 
         IFhirNavigator fhirNavigator = fhirNavigatorFactory.GetFhirNavigator(repositoryCode);
@@ -284,10 +285,10 @@ public class FhirTaskDispatcher(
                 task.Id,
                 task.Restriction.Period.StartElement.ToDateTimeOffset(now.Offset),
                 task.Restriction.Period.EndElement.ToDateTimeOffset(now.Offset));
-            return false;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     private bool AllTaskRepetitionsPerformed(
