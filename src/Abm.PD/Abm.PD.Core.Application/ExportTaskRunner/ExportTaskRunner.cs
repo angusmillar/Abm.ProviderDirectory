@@ -30,7 +30,7 @@ public class ExportTaskRunner(
         Parameters parameters = FhirExportQuery.FromParameter(exportTask.Parameter);
 
         FhirBulkExportManifest? fhirBulkExportManifest =
-            await fhirExporter.RequestDownloadManifest(parameters, providerDirectorySettings.Value.FhirRepositoryCodeAssignment.HealthConnectProviderDirectorySource, cancellationToken);
+            await fhirExporter.RequestDownloadManifest(parameters, providerDirectorySettings.Value.FhirRepositoryCodeAssignment.HealthConnectProviderDirectoryExternal, cancellationToken);
 
         ArgumentNullException.ThrowIfNull(fhirBulkExportManifest);
         ArgumentNullException.ThrowIfNull(fhirExporter.JobId);

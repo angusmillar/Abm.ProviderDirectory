@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using Abm.PD.BulkExport;
 using Abm.PD.Console.Settings;
 using Abm.PD.BulkExport.Loader;
@@ -6,8 +7,10 @@ using Abm.PD.BulkExport.Models;
 using Abm.PD.BulkExport.Writer;
 using Abm.PD.Core.Application;
 using Abm.PD.Core.Application.ExportTaskRunner;
+using Abm.PD.Core.Application.Identifers;
 using Abm.PD.Core.Application.Settings;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Task = System.Threading.Tasks.Task;
@@ -39,6 +42,11 @@ public class ConsoleApplication(
     {
         StartStopwatch();
 
+
+        var task = FhirTaskFactory.CreateFhirTask();
+
+        string json = await task.ToJsonAsync();
+        
         logger.LogInformation("== Begin Request ================================================================");
         logger.LogInformation("FHIR Bulk Data Export session started");
         

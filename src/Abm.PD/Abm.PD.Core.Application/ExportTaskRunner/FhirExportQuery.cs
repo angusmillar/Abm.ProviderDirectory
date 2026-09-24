@@ -117,11 +117,17 @@ public static class FhirExportQuery
     }
 
     public static Parameters GetEveryThingFrom(
-        DateTimeOffset fromDateTime)
+        DateTimeOffset fromDateTime,
+        string? resourceId = null)
     {
         var since = new Instant() { Value = fromDateTime };
 
         Parameters parameters = new Parameters();
+        if (resourceId is not null)
+        {
+            parameters.Id = resourceId;
+        }
+        
         parameters.Parameter.Add(new Parameters.ParameterComponent()
         {
             Name = "_outputFormat",

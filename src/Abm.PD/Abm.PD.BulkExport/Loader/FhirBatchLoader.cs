@@ -162,7 +162,7 @@ public class FhirBatchLoader(
 
         Bundle requestBundle = new()
         {
-            Type = Bundle.BundleType.Batch,
+            Type = Bundle.BundleType.Transaction,
             Entry = batch.Select(ToPutEntry).ToList()
         };
 
@@ -261,6 +261,7 @@ public class FhirBatchLoader(
             //No FullUrl: a batch resolves nothing between its own entries, and every entry addresses its
             //resource by type and id in the request url, so all a fullUrl could add here is the source server's
             //address on a resource being written to a different server.
+            FullUrl = $"{exportResource.Resource.TypeName}/{exportResource.Resource.Id}",
             Request = new Bundle.RequestComponent
             {
                 Method = Bundle.HTTPVerb.PUT,

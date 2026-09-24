@@ -20,10 +20,16 @@ public class ExportTaskRunnerTests
         {
             FhirRepositoryCodeAssignment = new FhirRepositoryCodeAssignmentSettings
             {
-                HealthConnectProviderDirectorySource = "ProviderConnectAustralia",
-                HealthLinkProviderDirectorySource = "HealthLink",
+                HealthConnectProviderDirectoryExternal = "ProviderConnectAustraliaExternal",
+                HealthConnectProviderDirectoryLocal = "ProviderConnectAustraliaLocal",
+                HealthLinkProviderDirectoryExternal = "HealthLinkExternal",
+                HealthLinkProviderDirectoryLocal = "HealthLinkLocal",
                 TelstraHealthProviderDirectoryTarget = "TelstraHealth",
             },
+            FhirSystemUriSettings = new FhirSystemUriSettings()
+            {
+                ProviderDirectoryIgBaseUrl = new Uri("http://acme-health.fhir.com/ig"),
+            }
         });
     }
 

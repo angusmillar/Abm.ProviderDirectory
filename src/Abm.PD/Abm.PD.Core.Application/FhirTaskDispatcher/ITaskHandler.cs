@@ -4,8 +4,9 @@ namespace Abm.PD.Core.Application.FhirTaskDispatcher;
 
 public interface ITaskHandler
 {
-    Task Handle(
+    Task<TaskHandlerOutcome> Handle(
         Hl7.Fhir.Model.Task task, 
-        IFhirNavigator fhirNavigator, 
+        IFhirNavigator fhirNavigator,
+        Guid correlationId,
         CancellationToken cancellationToken);
 }

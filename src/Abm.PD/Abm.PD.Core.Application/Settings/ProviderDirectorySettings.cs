@@ -8,6 +8,9 @@ public record ProviderDirectorySettings
 
     [Required]
     public required FhirRepositoryCodeAssignmentSettings FhirRepositoryCodeAssignment { get; init; }
+    
+    [Required]
+    public required FhirSystemUriSettings FhirSystemUriSettings { get; init; }
 }
 
 /// <summary>
@@ -18,11 +21,25 @@ public record ProviderDirectorySettings
 public record FhirRepositoryCodeAssignmentSettings
 {
     [Required]
-    public required string HealthConnectProviderDirectorySource { get; init; }
+    public required string HealthConnectProviderDirectoryExternal { get; init; }
+    
+    [Required]
+    public required string HealthConnectProviderDirectoryLocal { get; init; }
 
     [Required]
-    public required string HealthLinkProviderDirectorySource { get; init; }
+    public required string HealthLinkProviderDirectoryExternal { get; init; }
+
+    [Required]
+    public required string HealthLinkProviderDirectoryLocal { get; init; }
 
     [Required]
     public required string TelstraHealthProviderDirectoryTarget { get; init; }
+    
+}
+
+public record FhirSystemUriSettings
+{
+    [Required]
+    public required Uri ProviderDirectoryIgBaseUrl { get; init; }
+    
 }
